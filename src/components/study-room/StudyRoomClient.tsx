@@ -78,8 +78,6 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   const [chatMode, setChatMode] = useState<"room" | "direct">("room")
   const currentConvId = chatMode === "direct" && activeDirectChat ? activeDirectChat.conversationId : roomConvId
 
-  const [incomingChatRequests, setIncomingChatRequests] = useState<any[]>([])
-
   // DB-backed chat messages state
   const [dbMessages, setDbMessages] = useState<any[]>([])
   const [loadingMessages, setLoadingMessages] = useState(false)
@@ -88,22 +86,51 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   const chatContainerRef = useRef<HTMLDivElement>(null)
   const pdfContainerRef = useRef<HTMLDivElement>(null)
 
-  // Periodically check for incoming chat requests
+  const [incomingChatRequests, setIncomingChatRequests] = useState<any[]>([])
+  const [userConversations, setUserConversations] = useState<any[]>([])
+  const [unreadMsgBanner, setUnreadMsgBanner] = useState<{ senderName: string; text: string; conversationId: string; partner: any } | null>(null)
+  const lastKnownMsgIdsRef = useRef<Record<string, string>>({})
+
+  // Periodically check for incoming chat requests and new private messages
   useEffect(() => {
     if (!user) return
-    const checkRequests = async () => {
+    const checkActivity = async () => {
       try {
         const res = await fetch(`/api/chat/conversations?user_id=${user.id}`)
         if (res.ok) {
           const data = await res.json()
           setIncomingChatRequests(data.incomingRequests || [])
+          
+          const convs = data.conversations || []
+          setUserConversations(convs)
+
+          // Check if there is a new message from a partner that user isn't currently viewing
+          for (const conv of convs) {
+            const lastMsg = conv.last_message
+            if (lastMsg && lastMsg.sender_id !== user.id) {
+              const previousLastId = lastKnownMsgIdsRef.current[conv.id]
+              // If we already had a record and now there's a newer message or different content/timestamp
+              if (previousLastId && previousLastId !== lastMsg.created_at) {
+                // Only alert if user is NOT currently inside this direct chat
+                if (chatMode !== "direct" || activeDirectChat?.conversationId !== conv.id) {
+                  setUnreadMsgBanner({
+                    senderName: conv.partner?.full_name || conv.partner?.username || "Study Partner",
+                    text: lastMsg.content,
+                    conversationId: conv.id,
+                    partner: conv.partner,
+                  })
+                }
+              }
+              lastKnownMsgIdsRef.current[conv.id] = lastMsg.created_at
+            }
+          }
         }
       } catch {}
     }
-    checkRequests()
-    const timer = setInterval(checkRequests, 4000)
+    checkActivity()
+    const timer = setInterval(checkActivity, 3500)
     return () => clearInterval(timer)
-  }, [user])
+  }, [user, chatMode, activeDirectChat?.conversationId])
 
   // Fetch messages from DB for current conversation
   const loadMessages = async (convId: string, silent = false) => {
@@ -831,6 +858,54 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
               <>
                 {/* Active Participants */}
                 <div className={styles.sidebarBox} style={{ padding: activeBook ? "1rem" : undefined }}>
+                  {/* New Incoming Message Popup Banner */}
+                  {unreadMsgBanner && (
+                    <div style={{
+                      background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                      color: "#ffffff",
+                      borderRadius: "var(--radius-md)",
+                      padding: "0.6rem 0.8rem",
+                      marginBottom: "0.8rem",
+                      fontSize: "0.82rem",
+                      boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "0.5rem",
+                      animation: "fadeIn 0.3s ease",
+                    }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "5px", fontWeight: 700, fontSize: "0.78rem" }}>
+                          <span>💬</span>
+                          <span>New Message from @{unreadMsgBanner.partner?.username || unreadMsgBanner.senderName}</span>
+                        </div>
+                        <div style={{ fontSize: "0.72rem", opacity: 0.95, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                          "{unreadMsgBanner.text}"
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: "4px" }}>
+                        <button
+                          className="btn btn-sm"
+                          style={{ background: "#ffffff", color: "#065f46", fontWeight: 700, padding: "0.2rem 0.6rem", fontSize: "0.72rem", border: "none" }}
+                          onClick={() => {
+                            setActiveDirectChat({ conversationId: unreadMsgBanner.conversationId, partner: unreadMsgBanner.partner })
+                            setChatMode("direct")
+                            setUnreadMsgBanner(null)
+                          }}
+                        >
+                          Reply
+                        </button>
+                        <button
+                          style={{ background: "transparent", border: "none", color: "#ffffff", fontSize: "0.8rem", cursor: "pointer", opacity: 0.8 }}
+                          onClick={() => setUnreadMsgBanner(null)}
+                          title="Dismiss"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {incomingChatRequests.length > 0 && (
                     <div style={{
                       background: "linear-gradient(135deg, rgba(2, 132, 199, 0.25) 0%, rgba(99, 102, 241, 0.25) 100%)",
@@ -928,16 +1003,40 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                       >
                         👥 Room Chat
                       </button>
-                      {activeDirectChat && (
-                        <button
-                          type="button"
-                          className={`btn btn-sm ${chatMode === "direct" ? "btn-primary" : "btn-secondary"}`}
-                          style={{ padding: "0.25rem 0.6rem", fontSize: "0.75rem", display: "flex", alignItems: "center", gap: "4px" }}
-                          onClick={() => setChatMode("direct")}
-                        >
-                          💬 @{activeDirectChat.partner?.username}
-                        </button>
-                      )}
+                      {userConversations.map((conv) => {
+                        const isCurrent = chatMode === "direct" && activeDirectChat?.conversationId === conv.id
+                        const hasUnread = conv.last_message && conv.last_message.sender_id !== user?.id
+                        return (
+                          <button
+                            key={conv.id}
+                            type="button"
+                            className={`btn btn-sm ${isCurrent ? "btn-primary" : "btn-secondary"}`}
+                            style={{
+                              padding: "0.25rem 0.6rem",
+                              fontSize: "0.75rem",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              position: "relative",
+                            }}
+                            onClick={() => {
+                              setActiveDirectChat({ conversationId: conv.id, partner: conv.partner })
+                              setChatMode("direct")
+                            }}
+                          >
+                            <span>💬 @{conv.partner?.username}</span>
+                            {hasUnread && !isCurrent && (
+                              <span style={{
+                                width: "7px",
+                                height: "7px",
+                                borderRadius: "50%",
+                                background: "#10b981",
+                                display: "inline-block",
+                              }} />
+                            )}
+                          </button>
+                        )
+                      })}
                     </div>
                     {chatMode === "direct" && (
                       <button

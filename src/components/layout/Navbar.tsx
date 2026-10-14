@@ -11,6 +11,8 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
   const supabase = createClient()
 
+  const [unreadCount, setUnreadCount] = useState(0)
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user))
     const { data: listener } = supabase.auth.onAuthStateChange((_, session) => {
@@ -18,6 +20,29 @@ export default function Navbar() {
     })
     return () => listener?.subscription?.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    if (!user) return
+    const checkBadge = async () => {
+      try {
+        const res = await fetch(`/api/chat/conversations?user_id=${user.id}`)
+        if (res.ok) {
+          const data = await res.json()
+          const reqCount = (data.incomingRequests || []).length
+          let unreadMsg = 0
+          for (const conv of (data.conversations || [])) {
+            if (conv.last_message && conv.last_message.sender_id !== user.id) {
+              unreadMsg += 1
+            }
+          }
+          setUnreadCount(reqCount + unreadMsg)
+        }
+      } catch {}
+    }
+    checkBadge()
+    const timer = setInterval(checkBadge, 6000)
+    return () => clearInterval(timer)
+  }, [user])
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -45,16 +70,34 @@ export default function Navbar() {
 
         {/* Desktop Nav */}
         <div className={styles.navLinks}>
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`${styles.navLink} ${isActive(link.href) ? styles.navLinkActive : ""}`}
-            >
-              <span>{link.icon}</span>
-              {link.label}
-            </Link>
-          ))}
+          {navLinks.map((link) => {
+            const isMessages = link.href === "/chat"
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`${styles.navLink} ${isActive(link.href) ? styles.navLinkActive : ""}`}
+                style={{ position: "relative" }}
+              >
+                <span>{link.icon}</span>
+                <span>{link.label}</span>
+                {isMessages && unreadCount > 0 && (
+                  <span style={{
+                    background: "#ef4444",
+                    color: "#ffffff",
+                    fontSize: "0.68rem",
+                    fontWeight: 700,
+                    borderRadius: "9999px",
+                    padding: "1px 6px",
+                    lineHeight: 1.2,
+                    marginLeft: "2px",
+                  }}>
+                    {unreadCount}
+                  </span>
+                )}
+              </Link>
+            )
+          })}
         </div>
 
         {/* Right side */}
