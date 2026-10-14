@@ -23,18 +23,24 @@ function LoginForm() {
 
     let loginEmail = identifier.trim()
 
-    // If no '@' is present, assume it's a username and fetch the email from profiles
+    // If no '@' is present, resolve username via backend API
     if (!loginEmail.includes("@")) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("email")
-        .eq("username", loginEmail.toLowerCase())
-        .maybeSingle()
-
-      if (profile?.email) {
-        loginEmail = profile.email
-      } else {
-        setError("Username not found. Please check spelling or use your email.")
+      try {
+        const res = await fetch("/api/auth/resolve-identifier", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ identifier: loginEmail }),
+        })
+        const json = await res.json()
+        if (res.ok && json.email) {
+          loginEmail = json.email
+        } else {
+          setError(json.error || "Username not found. Please check spelling or use your email.")
+          setLoading(false)
+          return
+        }
+      } catch (err: any) {
+        setError("Error connecting to server. Please try again.")
         setLoading(false)
         return
       }
