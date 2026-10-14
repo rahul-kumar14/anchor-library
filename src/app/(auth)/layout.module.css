@@ -1,0 +1,86 @@
+.authPage {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  padding: var(--space-6);
+  background: linear-gradient(145deg, #FEF3C7 0%, #FFFBF0 40%, #FDE68A 100%);
+}
+
+/* Decorative book-spine bars */
+.authPage::before {
+  content: "";
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background:
+    radial-gradient(ellipse 600px 400px at 15% 20%, rgba(217,119,6,0.12) 0%, transparent 70%),
+    radial-gradient(ellipse 400px 300px at 85% 80%, rgba(180,83,9,0.10) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Floating golden orbs */
+.orb1 {
+  position: fixed;
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(217,119,6,0.18) 0%, transparent 70%);
+  border-radius: 50%;
+  top: -120px; left: -150px;
+  pointer-events: none;
+  z-index: 0;
+}
+.orb2 {
+  position: fixed;
+  width: 380px; height: 380px;
+  background: radial-gradient(circle, rgba(180,83,9,0.12) 0%, transparent 70%);
+  border-radius: 50%;
+  bottom: -80px; right: -100px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Decorative book icons */
+.bookDeco {
+  position: fixed;
+  font-size: 6rem;
+  opacity: 0.06;
+  pointer-events: none;
+  z-index: 0;
+  user-select: none;
+}
+.bookDeco1 { top: 8%; right: 6%; transform: rotate(12deg); font-size: 8rem; }
+.bookDeco2 { bottom: 10%; left: 4%; transform: rotate(-15deg); font-size: 7rem; }
+.bookDeco3 { top: 55%; right: 3%; transform: rotate(6deg); font-size: 5rem; }
+
+.authCenter {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  max-width: 460px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--color-primary-dark);
+  text-shadow: 0 1px 2px rgba(120,53,15,0.1);
+}
+
+.brandIcon {
+  font-size: 2.2rem;
+  filter: drop-shadow(0 2px 4px rgba(180,83,9,0.3));
+}
+
+.brandText {
+  font-family: var(--font-heading);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--color-primary-dark);
+}

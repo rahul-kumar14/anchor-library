@@ -1,0 +1,116 @@
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.pageTitle {
+  font-family: var(--font-heading);
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #E8E6F0;
+  margin-bottom: 4px;
+}
+
+.pageSubtitle {
+  font-size: 0.85rem;
+  color: rgba(200, 190, 220, 0.55);
+}
+
+.headerStats { display: flex; gap: 12px; flex-wrap: wrap; }
+
+.statPill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #211E32;
+  border: 1px solid rgba(217, 119, 6, 0.15);
+  border-radius: 12px;
+  padding: 12px 20px;
+}
+
+.statNum {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #F59E0B;
+  font-family: var(--font-heading);
+}
+
+.statLbl {
+  font-size: 0.7rem;
+  color: rgba(200, 190, 220, 0.45);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 2px;
+}
+
+/* Empty */
+.empty {
+  background: #1A1728;
+  border: 1px solid rgba(217,119,6,0.12);
+  border-radius: 16px;
+  padding: 64px 24px;
+  text-align: center;
+  color: rgba(200,190,220,0.45);
+  font-size: 0.875rem;
+}
+.emptyIcon { font-size: 2.5rem; display: block; margin-bottom: 12px; }
+.emptyHint { font-size: 0.75rem; color: rgba(200,190,220,0.3); margin-top: 6px; }
+
+/* Timeline */
+.timelineCard {
+  background: #1A1728;
+  border: 1px solid rgba(217,119,6,0.15);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.timelineList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.timelineItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid rgba(217,119,6,0.07);
+  position: relative;
+}
+.timelineItem:last-child { border-bottom: none; }
+
+.timelineDot {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.timelineContent { flex: 1; min-width: 0; padding-top: 6px; }
+
+.timelineText {
+  font-size: 0.875rem;
+  color: #E8E6F0;
+  line-height: 1.5;
+}
+
+.timelineTime {
+  font-size: 0.72rem;
+  color: rgba(200,190,220,0.4);
+  margin-top: 4px;
+}
+
+@media (max-width: 640px) {
+  .headerStats { gap: 8px; }
+  .statPill { padding: 10px 14px; }
+}

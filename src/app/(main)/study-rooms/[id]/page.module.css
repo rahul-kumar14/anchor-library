@@ -1,0 +1,316 @@
+.roomContainer {
+  min-height: calc(100vh - var(--navbar-height));
+  padding: var(--space-6);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.roomHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-6);
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.roomInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.backBtn {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  transition: all var(--transition-fast);
+}
+.backBtn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-surface-3);
+}
+
+.roomTitleGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.roomIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.roomHeading {
+  font-size: var(--text-xl);
+  font-weight: 700;
+}
+
+.roomSub {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.liveBadge {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: rgba(0, 212, 170, 0.1);
+  border: 1px solid rgba(0, 212, 170, 0.3);
+  color: var(--color-secondary);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.roomGrid {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: var(--space-6);
+}
+
+.mainFocusArea {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.goalCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5) var(--space-6);
+}
+
+.goalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.goalLabel {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.goalText {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.timerCard {
+  background: radial-gradient(circle at 50% 30%, rgba(108, 99, 255, 0.08), transparent 70%), var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-12) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: var(--shadow-card);
+}
+
+.timerModeToggle {
+  display: flex;
+  gap: var(--space-2);
+  background: var(--color-surface-2);
+  padding: 4px;
+  border-radius: var(--radius-full);
+  margin-bottom: var(--space-6);
+}
+
+.modeBtn {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.modeBtnActive {
+  background: var(--color-primary);
+  color: white;
+}
+
+.timerDisplay {
+  margin-bottom: var(--space-8);
+}
+
+.pomoBadge {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-2);
+}
+
+.timerNumbers {
+  font-size: clamp(3.5rem, 8vw, 6rem);
+  font-weight: 800;
+  font-family: var(--font-heading);
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.timerControls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.soundBar {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-6);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.soundTitle {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.soundOptions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.soundBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  border: 1px solid var(--color-border);
+  transition: all var(--transition-fast);
+}
+.soundBtn:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-primary);
+}
+.soundBtnActive {
+  background: var(--color-primary-glow) !important;
+  color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.roomSidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.sidebarBox {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+
+.boxTitle {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  margin-bottom: var(--space-4);
+  color: var(--color-text-primary);
+}
+
+.participantList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.participantItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.participantMeta {
+  display: flex;
+  flex-direction: column;
+}
+
+.pName {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.pStatus {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.chatLog {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-height: 260px;
+  overflow-y: auto;
+  margin-bottom: var(--space-4);
+}
+
+.chatBubble {
+  background: var(--color-surface-2);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+}
+
+.chatHeader {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-xs);
+  color: var(--color-primary);
+  margin-bottom: 2px;
+}
+.chatHeader span {
+  color: var(--color-text-muted);
+}
+
+.chatText {
+  font-size: var(--text-xs);
+  color: var(--color-text-primary);
+}
+
+.chatInputForm {
+  display: flex;
+  gap: var(--space-2);
+}
+
+@media (max-width: 992px) {
+  .roomGrid {
+    grid-template-columns: 1fr;
+  }
+}

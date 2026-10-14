@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rahul Kumar - C#/.NET Software Engineer CV</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    @page {
+      size: A4 portrait;
+      margin: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: #1e293b;
+      background: #ffffff;
+      line-height: 1.32;
+      font-size: 8.8pt;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .page {
+      width: 210mm;
+      height: 297mm;
+      padding: 9mm 12mm 8mm 12mm;
+      margin: 0 auto;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* Header */
+    .header {
+      border-bottom: 2px solid #0284c7;
+      padding-bottom: 5px;
+      margin-bottom: 6px;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2px;
+    }
+
+    .name {
+      font-size: 20pt;
+      font-weight: 700;
+      letter-spacing: -0.4px;
+      color: #0f172a;
+      text-transform: uppercase;
+    }
+
+    .relocation-badge {
+      background: #f0f9ff;
+      color: #0369a1;
+      font-size: 7.6pt;
+      font-weight: 600;
+      padding: 2.5px 7px;
+      border-radius: 4px;
+      border: 1px solid #bae6fd;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .target-role {
+      font-size: 10pt;
+      font-weight: 600;
+      color: #0284c7;
+      margin-bottom: 3px;
+    }
+
+    .contact-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      font-size: 8.2pt;
+      color: #475569;
+    }
+
+    .contact-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .contact-item a {
+      color: #0369a1;
+      text-decoration: none;
+    }
+
+    .contact-sep {
+      color: #cbd5e1;
+    }
+
+    /* Section Styles */
+    .section {
+      margin-bottom: 5px;
+    }
+
+    .section-title {
+      font-size: 9.3pt;
+      font-weight: 700;
+      color: #0f172a;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 2px;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .section-title::before {
+      content: "";
+      display: inline-block;
+      width: 3.5px;
+      height: 10px;
+      background: #0284c7;
+      border-radius: 1px;
+    }
+
+    /* Summary */
+    .summary-text {
+      font-size: 8.4pt;
+      color: #334155;
+      text-align: justify;
+      line-height: 1.32;
+    }
+
+    /* Skills Grid */
+    .skills-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8.3pt;
+    }
+
+    .skills-table td {
+      padding: 1.5px 0;
+      vertical-align: top;
+    }
+
+    .skill-cat {
+      width: 24%;
+      font-weight: 600;
+      color: #0f172a;
+      font-size: 8.2pt;
+    }
+
+    .skill-val {
+      width: 76%;
+      color: #334155;
+    }
+
+    .skill-val strong {
+      color: #0f172a;
+      font-weight: 600;
+    }
+
+    /* Experience & Projects */
+    .item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 1px;
+    }
+
+    .item-title-group {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+
+    .item-title {
+      font-size: 9pt;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .item-subtitle {
+      font-size: 8.5pt;
+      font-weight: 600;
+      color: #0284c7;
+    }
+
+    .item-meta {
+      font-size: 8pt;
+      color: #64748b;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .item-tech {
+      font-size: 7.9pt;
+      color: #475569;
+      font-style: italic;
+      margin-bottom: 2.5px;
+    }
+
+    .bullet-list {
+      list-style-type: none;
+      padding-left: 0;
+      margin-bottom: 3.5px;
+    }
+
+    .bullet-list li {
+      position: relative;
+      padding-left: 11px;
+      margin-bottom: 1.8px;
+      font-size: 8.3pt;
+      color: #334155;
+      line-height: 1.3;
+      text-align: justify;
+    }
+
+    .bullet-list li::before {
+      content: "▪";
+      position: absolute;
+      left: 1px;
+      color: #0284c7;
+      font-size: 7.5pt;
+      top: -0.5px;
+    }
+
+    .bullet-list li strong {
+      color: #0f172a;
+      font-weight: 600;
+    }
+
+    /* Education & Languages Row */
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 1.08fr 0.92fr;
+      gap: 12px;
+      margin-top: 2px;
+    }
+
+    .edu-box {
+      font-size: 8.2pt;
+      color: #334155;
+    }
+
+    .edu-degree {
+      font-weight: 700;
+      color: #0f172a;
+      font-size: 8.5pt;
+    }
+
+    .edu-inst {
+      color: #0284c7;
+      font-weight: 600;
+      font-size: 8.2pt;
+    }
+
+    .lang-item {
+      font-size: 8.2pt;
+      color: #334155;
+      margin-bottom: 2px;
+      line-height: 1.28;
+    }
+
+    @media print {
+      body {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .page {
+        margin: 0;
+        padding: 9mm 12mm 8mm 12mm;
+        box-shadow: none;
+        page-break-after: avoid;
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+  <div>
+    <!-- Header -->
+    <header class="header">
+      <div class="header-top">
+        <h1 class="name">RAHUL KUMAR</h1>
+        <span class="relocation-badge">Munich Relocation Ready &bull; EU Blue Card Eligible</span>
+      </div>
+      <div class="target-role">
+        Software Engineer &mdash; C# / .NET / Testing &amp; Measurement Software
+      </div>
+      <div class="contact-bar">
+        <span class="contact-item"><strong>Email:</strong> <a href="mailto:rkrandaha14@gmail.com">rkrandaha14@gmail.com</a></span>
+        <span class="contact-sep">&bull;</span>
+        <span class="contact-item"><strong>Phone:</strong> +91 7352013096</span>
+        <span class="contact-sep">&bull;</span>
+        <span class="contact-item"><strong>Location:</strong> Noida, India (Open to Munich, DE)</span>
+        <span class="contact-sep">&bull;</span>
+        <span class="contact-item"><strong>LinkedIn:</strong> <a href="https://linkedin.com">linkedin.com/in/rahul-kumar</a></span>
+        <span class="contact-sep">&bull;</span>
+        <span class="contact-item"><strong>Coding:</strong> <a href="https://hackerrank.com">HackerRank</a></span>
+      </div>
+    </header>
+
+    <!-- Summary -->
+    <section class="section">
+      <h2 class="section-title">Professional Summary</h2>
+      <p class="summary-text">
+        Performance-driven <strong>Software Engineer</strong> with solid practical expertise in <strong>C#, .NET Core, WPF (PRISM/MVVM)</strong>, and multi-threaded system development. Proven capability in engineering reliable desktop measurement tooling, low-level serial communication interfaces (RS-232, TCP/IP sockets), and high-throughput data processing algorithms. Hands-on experience developing unit test suites (MSTest, NUnit) and CI/CD pipelines (Jenkins, Git) in cross-functional Agile/Scrum environments. English: Fluent (C1/C2), German: Elementary (A1, actively learning). Fully eligible for the <strong>German EU Blue Card</strong> with a recognized 4-year B.Eng in Computer Science. Dedicated to engineering robust test automation and measurement software at <strong>ALTEN GmbH (Munich)</strong>.
+      </p>
+    </section>
+
+    <!-- Skills -->
+    <section class="section">
+      <h2 class="section-title">Technical Expertise</h2>
+      <table class="skills-table">
+        <tr>
+          <td class="skill-cat">Core Languages:</td>
+          <td class="skill-val"><strong>C#</strong>, <strong>C/C++</strong> (Fundamentals &amp; Interop), <strong>Python</strong> (Scripting &amp; Data Analysis), Java, SQL, JavaScript</td>
+        </tr>
+        <tr>
+          <td class="skill-cat">.NET &amp; Desktop Tooling:</td>
+          <td class="skill-val"><strong>.NET Core / .NET 8</strong>, <strong>WPF</strong> (XAML, <strong>PRISM</strong>, MVVM), Windows Forms, <strong>WCF</strong>, RESTful Web APIs, Entity Framework Core</td>
+        </tr>
+        <tr>
+          <td class="skill-cat">Measurement &amp; Systems:</td>
+          <td class="skill-val"><strong>Serial Communications</strong> (RS-232, USB, UART), <strong>TCP/IP Socket Programming</strong>, Hardware Interfacing, Spectrum &amp; Vector Network Analysis (Foundations), <strong>MATLAB</strong> (Basic)</td>
+        </tr>
+        <tr>
+          <td class="skill-cat">Quality &amp; Testing:</td>
+          <td class="skill-val"><strong>Visual Studio Unit Testing Framework (MSTest)</strong>, <strong>NUnit</strong>, Moq, Automated Test Suites, TDD, Peer Code Reviews</td>
+        </tr>
+        <tr>
+          <td class="skill-cat">DevOps &amp; Tools:</td>
+          <td class="skill-val"><strong>Git</strong>, <strong>Jenkins (CI/CD)</strong>, <strong>Agile / Scrum</strong>, <strong>Redmine</strong>, Jira, Visual Studio 2022, Docker (Foundational)</td>
+        </tr>
+        <tr>
+          <td class="skill-cat">Databases &amp; Architecture:</td>
+          <td class="skill-val"><strong>MS SQL Server</strong>, MySQL, Stored Procedures &amp; Indexing, Multithreading, Object-Oriented Design (SOLID)</td>
+        </tr>
+      </table>
+    </section>
+
+    <!-- Experience -->
+    <section class="section">
+      <h2 class="section-title">Professional Experience</h2>
+      
+      <div class="exp-item">
+        <div class="item-header">
+          <div class="item-title-group">
+            <span class="item-title">Zee News</span>
+            <span class="item-subtitle">&bull; Software Developer</span>
+          </div>
+          <span class="item-meta">Aug 2024 &ndash; Present | Noida, India</span>
+        </div>
+        <div class="item-tech">Environment: C#, .NET Core, ASP.NET MVC, WCF, Serial Communication, SQL Server, MSTest, Git, Jenkins, Agile</div>
+        <ul class="bullet-list">
+          <li><strong>Architecture &amp; C# Engineering:</strong> Architect and maintain high-performance C#/.NET backend services and desktop modules, optimizing streaming data pipelines and improving overall data throughput by 35%.</li>
+          <li><strong>Desktop UI &amp; Hardware Interfacing:</strong> Engineered modular desktop user interfaces using WPF (MVVM) and Windows Forms, integrating serial communication protocols (RS-232, TCP/IP sockets) for real-time telemetry acquisition and device communication.</li>
+          <li><strong>Communication Interfaces:</strong> Developed robust Windows Communication Foundation (WCF) service interfaces and RESTful Web APIs to facilitate low-latency, asynchronous communication across distributed services.</li>
+          <li><strong>Unit Testing &amp; Quality:</strong> Created automated unit test suites using the <strong>Visual Studio Unit Testing Framework</strong> and <strong>NUnit</strong>, raising test coverage to 85%+ and decreasing production regression defects by 40%.</li>
+          <li><strong>CI/CD &amp; Release Management:</strong> Automated build validation and deployment pipelines using <strong>Git</strong> and <strong>Jenkins</strong>, ensuring seamless continuous integration and reliable software releases.</li>
+          <li><strong>Agile Collaboration &amp; Documentation:</strong> Collaborated in multidisciplinary agile teams, led peer code reviews, tracked sprints in <strong>Redmine/Jira</strong>, and authored technical design specifications.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Projects -->
+    <section class="section">
+      <h2 class="section-title">Featured Engineering Projects</h2>
+
+      <div class="project-item">
+        <div class="item-header">
+          <div class="item-title-group">
+            <span class="item-title">Real-Time Telemetry &amp; Measurement Monitoring System (ElectraSync)</span>
+          </div>
+          <span class="item-meta">C#, .NET Core, SQL Server, Multithreading, Git</span>
+        </div>
+        <ul class="bullet-list">
+          <li>Engineered a real-time data acquisition and visualization platform handling high-frequency streaming data with sub-second dashboard updates and instant threshold alerts.</li>
+          <li>Designed multi-threaded data ingestion routines and optimized SQL Server database indexing, reducing query latency by 45% under continuous concurrent load.</li>
+          <li>Implemented comprehensive unit test suites ensuring zero-data-loss synchronization and fail-safe recovery.</li>
+        </ul>
+      </div>
+
+      <div class="project-item">
+        <div class="item-header">
+          <div class="item-title-group">
+            <span class="item-title">Modular Instrument Control &amp; Signal Visualization Tool</span>
+          </div>
+          <span class="item-meta">C#, WPF, PRISM, Python, Serial/TCP Socket Protocols</span>
+        </div>
+        <ul class="bullet-list">
+          <li>Developed a modular measurement tooling prototype in <strong>C#</strong> and <strong>WPF</strong> using <strong>PRISM (MVVM)</strong> architecture to simulate instrument parameter configuration and telemetry packet parsing.</li>
+          <li>Integrated serial communications and TCP socket handlers to ingest simulated spectrum/frequency sweep data, plotting dynamic waveform curves in real time.</li>
+          <li>Created automated <strong>Python</strong> scripts for mathematical validation of signal samples against theoretical MATLAB models.</li>
+        </ul>
+      </div>
+
+      <div class="project-item">
+        <div class="item-header">
+          <div class="item-title-group">
+            <span class="item-title">Automated Computation &amp; Relational Data Engine</span>
+          </div>
+          <span class="item-meta">Java, MySQL, Relational Database Modeling, Algorithms</span>
+        </div>
+        <ul class="bullet-list">
+          <li>Constructed an automated processing engine replacing manual calculations with deterministic tier-based computational algorithms, reducing processing turnaround time by 60%.</li>
+          <li>Modeled robust relational schemas and indexed transactions in MySQL, ensuring high data integrity and consistency.</li>
+        </ul>
+      </div>
+    </section>
+  </div>
+
+  <!-- Bottom Grid: Education & Languages -->
+  <div class="bottom-grid">
+    <div>
+      <h2 class="section-title" style="margin-bottom: 3px;">Education</h2>
+      <div class="edu-box">
+        <div class="edu-degree">Bachelor of Engineering: Computer Science &amp; Engineering</div>
+        <div class="edu-inst">BRCM College of Engineering &amp; Technology</div>
+        <div style="color: #64748b; font-size: 8pt;">Graduated with Distinction &bull; <strong>GPA: 8.5 / 10.0</strong> (Haryana, India)</div>
+        <div style="color: #475569; font-size: 7.8pt; margin-top: 1px;">Focus: Software Architecture, Algorithms, Computer Networks, Systems Design</div>
+      </div>
+    </div>
+
+    <div>
+      <h2 class="section-title" style="margin-bottom: 3px;">Languages &amp; Relocation</h2>
+      <div class="lang-item">
+        <strong>English:</strong> Fluent / Full Professional Proficiency (C1/C2)
+      </div>
+      <div class="lang-item">
+        <strong>German:</strong> Elementary / A1 (Actively learning for workplace integration)
+      </div>
+      <div class="lang-item">
+        <strong>Relocation:</strong> Available immediately for Munich; eligible for EU Blue Card
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
