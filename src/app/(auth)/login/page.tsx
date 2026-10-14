@@ -52,19 +52,19 @@ function LoginForm() {
     }
 
     // Check is_admin from profiles table
-    // profiles table has: id, username, full_name, is_admin (no email column)
     const { data: profile } = await supabase
       .from("profiles")
       .select("is_admin")
       .eq("id", data.user.id)
-      .maybeSingle() // use maybeSingle so it doesn't throw if profile row missing
+      .maybeSingle()
+
+    const redirectTo = searchParams.get("redirect")
 
     if (profile?.is_admin === true) {
-      router.push("/admin/books")
+      window.location.href = redirectTo || "/admin/books"
     } else {
-      router.push("/dashboard")
+      window.location.href = redirectTo || "/dashboard"
     }
-    router.refresh()
   }
 
   return (
