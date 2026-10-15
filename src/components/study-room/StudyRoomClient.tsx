@@ -993,56 +993,65 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                 {/* Sidebar Chat Box with Left/Right Layout & DB Persistence */}
                 <div className={styles.sidebarBox} style={{ flex: 1, display: "flex", flexDirection: "column", padding: activeBook ? "1rem" : undefined }}>
                   {/* Mode Switcher Tabs */}
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
-                    <div style={{ display: "flex", gap: "6px" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px", gap: "8px", flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
                       <button
                         type="button"
                         className={`btn btn-sm ${chatMode === "room" ? "btn-primary" : "btn-secondary"}`}
-                        style={{ padding: "0.25rem 0.6rem", fontSize: "0.75rem" }}
+                        style={{ padding: "0.25rem 0.6rem", fontSize: "0.75rem", whiteSpace: "nowrap" }}
                         onClick={() => setChatMode("room")}
                       >
                         👥 Room Chat
                       </button>
-                      {userConversations.map((conv) => {
-                        const isCurrent = chatMode === "direct" && activeDirectChat?.conversationId === conv.id
-                        const hasUnread = conv.last_message && conv.last_message.sender_id !== user?.id
-                        return (
-                          <button
-                            key={conv.id}
-                            type="button"
-                            className={`btn btn-sm ${isCurrent ? "btn-primary" : "btn-secondary"}`}
-                            style={{
-                              padding: "0.25rem 0.6rem",
-                              fontSize: "0.75rem",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "4px",
-                              position: "relative",
-                            }}
-                            onClick={() => {
-                              setActiveDirectChat({ conversationId: conv.id, partner: conv.partner })
-                              setChatMode("direct")
-                            }}
-                          >
-                            <span>💬 @{conv.partner?.username}</span>
-                            {hasUnread && !isCurrent && (
-                              <span style={{
-                                width: "7px",
-                                height: "7px",
-                                borderRadius: "50%",
-                                background: "#10b981",
-                                display: "inline-block",
-                              }} />
-                            )}
-                          </button>
-                        )
-                      })}
+                      {userConversations
+                        .filter((conv) => {
+                          // Show in room sidebar tabs if the partner is currently active in this study room,
+                          // OR if it's the direct chat currently open
+                          const isPartnerActiveInRoom = activeUserList.some((u) => u.id === conv.partner?.id || u.username === conv.partner?.username)
+                          const isCurrentlyOpen = chatMode === "direct" && activeDirectChat?.conversationId === conv.id
+                          return isPartnerActiveInRoom || isCurrentlyOpen
+                        })
+                        .map((conv) => {
+                          const isCurrent = chatMode === "direct" && activeDirectChat?.conversationId === conv.id
+                          const hasUnread = conv.last_message && conv.last_message.sender_id !== user?.id
+                          return (
+                            <button
+                              key={conv.id}
+                              type="button"
+                              className={`btn btn-sm ${isCurrent ? "btn-primary" : "btn-secondary"}`}
+                              style={{
+                                padding: "0.25rem 0.6rem",
+                                fontSize: "0.75rem",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                position: "relative",
+                                whiteSpace: "nowrap",
+                              }}
+                              onClick={() => {
+                                setActiveDirectChat({ conversationId: conv.id, partner: conv.partner })
+                                setChatMode("direct")
+                              }}
+                            >
+                              <span>💬 @{conv.partner?.username}</span>
+                              {hasUnread && !isCurrent && (
+                                <span style={{
+                                  width: "7px",
+                                  height: "7px",
+                                  borderRadius: "50%",
+                                  background: "#10b981",
+                                  display: "inline-block",
+                                }} />
+                              )}
+                            </button>
+                          )
+                        })}
                     </div>
                     {chatMode === "direct" && (
                       <button
                         type="button"
                         onClick={() => setChatMode("room")}
-                        style={{ background: "transparent", border: "none", color: "var(--color-primary)", fontSize: "0.72rem", cursor: "pointer", fontWeight: 600 }}
+                        style={{ background: "transparent", border: "none", color: "var(--color-primary)", fontSize: "0.72rem", cursor: "pointer", fontWeight: 600, whiteSpace: "nowrap" }}
                         title="Switch back to Room Chat"
                       >
                         ← Room Chat

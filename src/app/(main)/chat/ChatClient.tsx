@@ -11,6 +11,7 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
   const [conversations, setConversations] = useState<any[]>([])
   const [requests, setRequests] = useState<any[]>([])
   const [activeConvId, setActiveConvId] = useState<string | null>(null)
+  const activeConvIdRef = useRef<string | null>(null)
   const [activePartner, setActivePartner] = useState<any>(null)
   const [messages, setMessages] = useState<any[]>([])
   const [inputText, setInputText] = useState("")
@@ -18,20 +19,28 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
   const [msgLoading, setMsgLoading] = useState(false)
   const [sending, setSending] = useState(false)
   const msgEndRef = useRef<HTMLDivElement>(null)
+  const msgContainerRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
+
+  // Keep activeConvIdRef in sync with state
+  useEffect(() => {
+    activeConvIdRef.current = activeConvId
+  }, [activeConvId])
 
   const fetchConversations = async () => {
     try {
       const res = await fetch("/api/chat/conversations")
       if (res.ok) {
         const data = await res.json()
-        setConversations(data.conversations || [])
+        const convList = data.conversations || []
+        setConversations(convList)
         setRequests(data.incomingRequests || [])
         
-        // Auto select first conversation if none selected
-        if (!activeConvId && data.conversations?.length > 0) {
-          setActiveConvId(data.conversations[0].id)
-          setActivePartner(data.conversations[0].partner)
+        // Auto select first conversation ONLY on first load if none has been selected yet
+        if (!activeConvIdRef.current && convList.length > 0) {
+          activeConvIdRef.current = convList[0].id
+          setActiveConvId(convList[0].id)
+          setActivePartner(convList[0].partner)
         }
       }
     } catch (err) {
@@ -94,8 +103,11 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
     }
   }, [activeConvId])
 
+  // Scroll only chat log container without jerking whole window page
   useEffect(() => {
-    msgEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    if (msgContainerRef.current) {
+      msgContainerRef.current.scrollTop = msgContainerRef.current.scrollHeight
+    }
   }, [messages])
 
   const handleAcceptRequest = async (requestId: number) => {
@@ -107,8 +119,9 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
       })
       const data = await res.json()
       if (res.ok && data.conversation_id) {
-        await fetchConversations()
+        activeConvIdRef.current = data.conversation_id
         setActiveConvId(data.conversation_id)
+        await fetchConversations()
       }
     } catch (err) {
       console.error(err)
@@ -228,6 +241,7 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
                       key={c.id}
                       className={`${styles.convItem} ${isActive ? styles.convItemActive : ""}`}
                       onClick={() => {
+                        activeConvIdRef.current = c.id
                         setActiveConvId(c.id)
                         setActivePartner(partner)
                       }}
@@ -291,7 +305,7 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
                 </div>
 
                 {/* Message Log */}
-                <div className={styles.msgArea}>
+                <div ref={msgContainerRef} className={styles.msgArea}>
                   {msgLoading ? (
                     <div style={{ textAlign: "center", color: "var(--color-text-muted)", margin: "auto" }}>
                       Loading chat messages...
