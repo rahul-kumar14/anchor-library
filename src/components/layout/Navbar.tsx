@@ -4,9 +4,11 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import styles from "./Navbar.module.css"
+import { useStudyRoomSession } from "@/context/StudyRoomContext"
 
 export default function Navbar() {
   const pathname = usePathname()
+  const { activeSession, leaveSession } = useStudyRoomSession()
   const [user, setUser] = useState<any>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const supabase = createClient()
@@ -101,7 +103,43 @@ export default function Navbar() {
         </div>
 
         {/* Right side */}
-        <div className={styles.navRight}>
+        <div className={styles.navRight} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          {/* Active Study Session Indicator */}
+          {activeSession && (
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              background: "rgba(16, 185, 129, 0.12)",
+              border: "1px solid rgba(16, 185, 129, 0.3)",
+              padding: "4px 10px",
+              borderRadius: "9999px",
+              fontSize: "0.75rem",
+            }}>
+              <span className="online-dot" style={{ position: "static", display: "inline-block", background: "#10b981", boxShadow: "0 0 6px #10b981" }} />
+              <Link href={`/study-rooms/${activeSession.roomId}`} style={{ fontWeight: 600, color: "#10b981", textDecoration: "none" }}>
+                {activeSession.roomIcon} {activeSession.roomName}
+              </Link>
+              <button
+                type="button"
+                onClick={leaveSession}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "#ef4444",
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  padding: "0 2px",
+                  marginLeft: "4px",
+                }}
+                title="Leave Study Room"
+              >
+                ✕ Leave
+              </button>
+            </div>
+          )}
+
           {user ? (
             <div className={styles.avatarWrap}>
               <div

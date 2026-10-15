@@ -7,6 +7,8 @@ import { Document, Page, pdfjs } from "react-pdf"
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 import UserProfileModal from "./UserProfileModal"
+import { useStudyRoomSession } from "@/context/StudyRoomContext"
+import { useRouter } from "next/navigation"
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -48,6 +50,8 @@ const ROOM_BOOKS: Record<string, { id: string; title: string; author: string; co
 }
 
 export default function StudyRoomClient({ room, roomId }: { room: any; roomId: string }) {
+  const router = useRouter()
+  const { activeSession, joinSession, leaveSession, updateSessionStatus } = useStudyRoomSession()
   const supabase = createClient()
   const [user, setUser] = useState<any>(null)
   const [channel, setChannel] = useState<any>(null)
@@ -249,6 +253,18 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
 
   const recommendedBooks = realBooks.length > 0 ? realBooks : (ROOM_BOOKS[roomId] || ROOM_BOOKS["night-owl"])
 
+  // Register active study room session globally so presence continues across pages
+  useEffect(() => {
+    joinSession({
+      roomId,
+      roomName: room.name,
+      roomIcon: room.icon,
+      status: activeBook ? "Reading intensely 📖" : "Studying quietly ✍️",
+      readingBook: activeBook?.title || null,
+      joinedAt: new Date().toISOString(),
+    })
+  }, [roomId, room.name, room.icon])
+
   // Fetch user and connect to Presence
   useEffect(() => {
     const ch = supabase.channel(`room:${roomId}`, {
@@ -280,7 +296,8 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
             await ch.track({
               id: data.user.id,
               username,
-              status: "Studying quietly ✍️",
+              status: activeBook ? "Reading intensely 📖" : "Studying quietly ✍️",
+              readingBook: activeBook?.title || null,
               joined_at: new Date().toISOString(),
             })
           }
@@ -289,20 +306,25 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
     })
 
     return () => {
-      ch.unsubscribe()
+      // If user still has this room active in session (e.g. browsing Library/Dashboard),
+      // we do not kill the audio or presence abruptly!
       if (audioElem) audioElem.pause()
     }
   }, [roomId])
 
-  // Track book reading
+  // Track book reading in both channel and global session
   useEffect(() => {
+    const currentStatus = activeBook ? "Reading intensely 📖" : "Studying quietly ✍️"
+    const currentBook = activeBook?.title || null
+    updateSessionStatus(currentStatus, currentBook)
+
     if (channel && user) {
       const username = user.user_metadata?.username || user.email?.split("@")[0] || "User"
       channel.track({
         id: user.id,
         username,
-        status: activeBook ? "Reading intensely 📖" : "Studying quietly ✍️",
-        readingBook: activeBook?.title || null,
+        status: currentStatus,
+        readingBook: currentBook,
         joined_at: new Date().toISOString(),
       })
     }
@@ -568,9 +590,17 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
       {!zenMode && (
         <div className={styles.roomHeader} style={{ borderColor: `${room.color}33`, marginBottom: activeBook ? "1rem" : undefined, padding: activeBook ? "0.75rem 1.25rem" : undefined }}>
           <div className={styles.roomInfo}>
-            <Link href="/study-rooms" className={styles.backBtn}>
+            <button
+              type="button"
+              className={styles.backBtn}
+              onClick={() => {
+                leaveSession()
+                router.push("/study-rooms")
+              }}
+              style={{ cursor: "pointer", border: "none" }}
+            >
               ← Leave Room
-            </Link>
+            </button>
             <div className={styles.roomTitleGroup}>
               <span className={styles.roomIcon} style={{ background: `${room.color}22` }}>
                 {room.icon}
