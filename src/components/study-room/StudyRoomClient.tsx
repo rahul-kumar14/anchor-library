@@ -10,11 +10,6 @@ import UserProfileModal from "./UserProfileModal"
 import { useStudyRoomSession } from "@/context/StudyRoomContext"
 import { useRouter } from "next/navigation"
 
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url,
-).toString();
-
 interface UserPresence {
   id: string
   username: string
@@ -61,6 +56,20 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   const [activeTab, setActiveTab] = useState<"chat" | "library">("library") 
   const [realBooks, setRealBooks] = useState<any[]>([])
   const [activeBook, setActiveBook] = useState<any | null>(null)
+
+  // Client-only setup for pdfjs worker
+  useEffect(() => {
+    if (typeof window !== "undefined" && !pdfjs.GlobalWorkerOptions.workerSrc) {
+      try {
+        pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+          'pdfjs-dist/build/pdf.worker.min.mjs',
+          import.meta.url,
+        ).toString()
+      } catch (e) {
+        console.error("Failed to initialize pdf worker:", e)
+      }
+    }
+  }, [])
 
   // Room Conversation ID mapping
   const ROOM_CONV_IDS: Record<string, string> = {

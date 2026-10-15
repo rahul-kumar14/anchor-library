@@ -1,9 +1,23 @@
 "use client"
-import { use } from "react"
 import dynamic from "next/dynamic"
+import { useParams } from "next/navigation"
 
 const StudyRoomClient = dynamic(() => import("@/components/study-room/StudyRoomClient"), {
   ssr: false,
+  loading: () => (
+    <div style={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      minHeight: "calc(100vh - 100px)",
+      color: "var(--color-text-secondary)",
+      fontSize: "0.95rem",
+      gap: "8px"
+    }}>
+      <span>🏛️</span>
+      <span>Entering Study Room...</span>
+    </div>
+  ),
 })
 
 const ROOM_DATA: Record<string, { name: string; icon: string; desc: string; color: string; defaultGoal: string }> = {
@@ -17,9 +31,11 @@ const ROOM_DATA: Record<string, { name: string; icon: string; desc: string; colo
   language: { name: "Language Learning", icon: "🌐", desc: "Vocabulary drills, grammar and reading practice.", color: "#EC4899", defaultGoal: "Learn 30 new words + speaking practice" },
 }
 
-export default function StudyRoomInsidePage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params)
-  const roomId = resolvedParams.id
+export default function StudyRoomInsidePage() {
+  const params = useParams()
+  const rawId = params?.id
+  const roomId = typeof rawId === "string" ? rawId : Array.isArray(rawId) ? rawId[0] : "silent"
+
   const room = ROOM_DATA[roomId] || {
     name: roomId.toUpperCase() + " Study Room",
     icon: "🏛️",
