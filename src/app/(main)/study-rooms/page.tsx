@@ -3,6 +3,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import styles from "./page.module.css"
+import { useStudyRoomSession } from "@/context/StudyRoomContext"
 
 const ROOM_TYPES = [
   { id: "silent", icon: "🔕", name: "Silent Study", desc: "Zero distraction. Pure focus.", color: "#6C63FF" },
@@ -17,6 +18,7 @@ const ROOM_TYPES = [
 
 export default function StudyRoomsPage() {
   const supabase = createClient()
+  const { activeSession } = useStudyRoomSession()
   const [roomCounts, setRoomCounts] = useState<Record<string, number>>({})
   const [totalOnline, setTotalOnline] = useState(0)
 
@@ -32,7 +34,9 @@ export default function StudyRoomsPage() {
         const count = Object.keys(state).length
         
         setRoomCounts(prev => {
-          const newCounts = { ...prev, [room.id]: count }
+          // If current user has activeSession in this room, guarantee count is at least 1
+          const finalCount = activeSession?.roomId === room.id ? Math.max(1, count) : count
+          const newCounts = { ...prev, [room.id]: finalCount }
           const total = Object.values(newCounts).reduce((acc, curr) => acc + curr, 0)
           setTotalOnline(total)
           return newCounts
@@ -46,7 +50,7 @@ export default function StudyRoomsPage() {
     return () => {
       channels.forEach(ch => ch.unsubscribe())
     }
-  }, [])
+  }, [activeSession?.roomId])
 
   return (
     <div className={styles.page}>
@@ -82,7 +86,8 @@ export default function StudyRoomsPage() {
         {/* Rooms Grid */}
         <div className={styles.roomsGrid}>
           {ROOM_TYPES.map((room) => {
-            const count = roomCounts[room.id] || 0
+            const isMyRoom = activeSession?.roomId === room.id
+            const count = isMyRoom ? Math.max(1, roomCounts[room.id] || 0) : (roomCounts[room.id] || 0)
             
             return (
               <Link
@@ -120,12 +125,13 @@ export default function StudyRoomsPage() {
                   <span
                     className={`btn btn-sm ${styles.joinBtn}`}
                     style={{
-                      background: `${room.color}22`,
-                      color: room.color,
-                      border: `1px solid ${room.color}55`,
+                      background: isMyRoom ? "rgba(16, 185, 129, 0.2)" : `${room.color}22`,
+                      color: isMyRoom ? "#10b981" : room.color,
+                      border: `1px solid ${isMyRoom ? "#10b981" : `${room.color}55`}`,
+                      fontWeight: isMyRoom ? 700 : undefined,
                     }}
                   >
-                    Join Room →
+                    {isMyRoom ? "In Session 🟢" : "Join Room →"}
                   </span>
                 </div>
               </Link>
