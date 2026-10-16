@@ -663,30 +663,39 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
              {/* Actual PDF Viewer */}
              <div ref={pdfContainerRef} style={{ flex: 1, background: "#e5e5e5", overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", width: "100%", height: "100%" }}>
                {activeBook.pdf_url ? (
-                 activeBook.pdf_url.includes("drive.google.com") ? (
-                   <iframe
-                     src={activeBook.pdf_url.includes("/preview") ? activeBook.pdf_url : activeBook.pdf_url.replace(/\/view(\?.*)?$/, "/preview")}
-                     style={{ width: "100%", height: "100%", minHeight: "70vh", border: "none" }}
-                     allow="autoplay"
-                     title={activeBook.title}
-                   />
-                 ) : (
-                   <div style={{ margin: "2rem 0", boxShadow: "0 8px 32px rgba(0,0,0,0.15)" }}>
-                     <Document
-                       file={activeBook.pdf_url}
-                       onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-                       loading={<div style={{ padding: "2rem" }}>Loading PDF...</div>}
-                       error={<div style={{ padding: "2rem", color: "red" }}>Failed to load PDF.</div>}
-                     >
-                       <Page 
-                         pageNumber={pageNumber} 
-                         renderTextLayer={true} 
-                         renderAnnotationLayer={true}
-                         scale={scale}
-                       />
-                     </Document>
-                   </div>
-                 )
+                 <div style={{ margin: "2rem 0", boxShadow: "0 8px 32px rgba(0,0,0,0.15)" }}>
+                   <Document
+                     file={(() => {
+                       if (activeBook.pdf_url && activeBook.pdf_url.includes("drive.google.com")) {
+                         const m = activeBook.pdf_url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+                         if (m && m[1]) return `/api/pdf-proxy?id=${m[1]}`;
+                       }
+                       return activeBook.pdf_url;
+                     })()}
+                     onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+                     loading={<div style={{ padding: "2rem" }}>Loading PDF from Google Drive...</div>}
+                     error={
+                       <div style={{ padding: "2rem", textAlign: "center" }}>
+                         <p style={{ color: "red", marginBottom: "1rem" }}>Failed to load PDF.</p>
+                         {activeBook.pdf_url.includes("drive.google.com") && (
+                           <iframe
+                             src={activeBook.pdf_url.includes("/preview") ? activeBook.pdf_url : activeBook.pdf_url.replace(/\/view(\?.*)?$/, "/preview")}
+                             style={{ width: "100%", height: "70vh", border: "none" }}
+                             allow="autoplay"
+                             title={activeBook.title}
+                           />
+                         )}
+                       </div>
+                     }
+                   >
+                     <Page 
+                       pageNumber={pageNumber} 
+                       renderTextLayer={true} 
+                       renderAnnotationLayer={true}
+                       scale={scale}
+                     />
+                   </Document>
+                 </div>
                ) : (
                   <div style={{ margin: "auto", textAlign: "center", padding: "2rem" }}>
                     <span style={{ fontSize: "4rem" }}>📖</span>

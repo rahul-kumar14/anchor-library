@@ -307,33 +307,40 @@ export default function ReaderPage() {
 
         {/* Center - PDF Renderer */}
         <div className={styles.pdfArea}>
-          {book.pdf_url && book.pdf_url.includes("drive.google.com") ? (
-            <div style={{ width: "100%", height: "100%", minHeight: "85vh", display: "flex", flexDirection: "column" }}>
-              <iframe
-                src={book.pdf_url.includes("/preview") ? book.pdf_url : book.pdf_url.replace(/\/view(\?.*)?$/, "/preview")}
-                style={{ width: "100%", height: "100%", flex: 1, minHeight: "85vh", border: "none", borderRadius: "var(--radius-md)" }}
-                allow="autoplay"
-                title={book.title}
+          <div className={`${styles.pdfWrapper} ${isFlipping ? styles.pageFlip : ''}`}>
+            <Document
+              file={(() => {
+                if (book.pdf_url && book.pdf_url.includes("drive.google.com")) {
+                  const m = book.pdf_url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+                  if (m && m[1]) return `/api/pdf-proxy?id=${m[1]}`;
+                }
+                return book.pdf_url;
+              })()}
+              onLoadSuccess={onDocumentLoadSuccess}
+              loading={<div style={{ padding: "2rem" }}>Loading PDF from Google Drive...</div>}
+              error={
+                <div style={{ padding: "2rem", textAlign: "center" }}>
+                  <p style={{ color: "red", marginBottom: "1rem" }}>Failed to load PDF directly.</p>
+                  {book.pdf_url && book.pdf_url.includes("drive.google.com") && (
+                    <iframe
+                      src={book.pdf_url.includes("/preview") ? book.pdf_url : book.pdf_url.replace(/\/view(\?.*)?$/, "/preview")}
+                      style={{ width: "100%", height: "70vh", border: "none" }}
+                      allow="autoplay"
+                      title={book.title}
+                    />
+                  )}
+                </div>
+              }
+            >
+              <Page 
+                pageNumber={pageNumber} 
+                renderTextLayer={true} 
+                renderAnnotationLayer={true}
+                scale={scale}
+                className={styles.pdfPageContent}
               />
-            </div>
-          ) : (
-            <div className={`${styles.pdfWrapper} ${isFlipping ? styles.pageFlip : ''}`}>
-              <Document
-                file={book.pdf_url}
-                onLoadSuccess={onDocumentLoadSuccess}
-                loading={<div style={{ padding: "2rem" }}>Loading PDF...</div>}
-                error={<div style={{ padding: "2rem", color: "red" }}>Failed to load PDF.</div>}
-              >
-                <Page 
-                  pageNumber={pageNumber} 
-                  renderTextLayer={true} 
-                  renderAnnotationLayer={true}
-                  scale={scale}
-                  className={styles.pdfPageContent}
-                />
-              </Document>
-            </div>
-          )}
+            </Document>
+          </div>
         </div>
 
         {/* Right Sidebar - Notes & Highlights */}
