@@ -387,8 +387,14 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
       // Don't flip page if user is typing a note
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       
-      if (e.key === "ArrowRight") changePage(1);
-      if (e.key === "ArrowLeft") changePage(-1);
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        changePage(1);
+      }
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        changePage(-1);
+      }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -430,7 +436,13 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
 
   // Save annotation
   async function handleSaveAnnotation() {
-    if (!activeBook || !selectedText || !user) return;
+    if (!activeBook || !user) return;
+    const noteText = noteInput.trim();
+    if (!noteText) {
+      alert("Please type a note first.");
+      return;
+    }
+    const textToSave = selectedText || `Page ${pageNumber} Note`;
     
     const tempId = Date.now().toString();
     const newAnnotation = {
@@ -438,8 +450,8 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
       user_id: user.id,
       book_id: activeBook.id,
       page_number: pageNumber,
-      selected_text: selectedText,
-      note: noteInput,
+      selected_text: textToSave,
+      note: noteText,
       created_at: new Date().toISOString()
     };
 
@@ -453,8 +465,8 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
         user_id: user.id,
         book_id: activeBook.id,
         page_number: pageNumber,
-        selected_text: newAnnotation.selected_text,
-        note: newAnnotation.note
+        selected_text: textToSave,
+        note: noteText
       }).select().single();
       
       if (data) {
@@ -673,7 +685,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                        return activeBook.pdf_url;
                      })()}
                      onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-                     loading={<div style={{ padding: "2rem" }}>Loading PDF from Google Drive...</div>}
+                     loading={<div style={{ padding: "2rem" }}>📖 Loading Book...</div>}
                      error={
                        <div style={{ padding: "2rem", textAlign: "center" }}>
                          <p style={{ color: "red", marginBottom: "1rem" }}>Failed to load PDF.</p>
@@ -809,25 +821,31 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                 Select text in the PDF to save a highlight.
               </p>
 
-              {/* New Annotation Form */}
-              {selectedText && (
-                <div style={{ background: "var(--color-surface-2)", padding: "0.75rem", borderRadius: "var(--radius-md)", marginBottom: "1rem", border: "1px solid var(--color-primary)" }}>
-                  <div style={{ fontSize: "0.75rem", fontStyle: "italic", marginBottom: "0.5rem", color: "var(--color-text-secondary)" }}>
+              {/* Note / Annotation Form */}
+              <div style={{ background: "var(--color-surface-2)", padding: "0.75rem", borderRadius: "var(--radius-md)", marginBottom: "1rem", border: "1px solid var(--color-border)" }}>
+                {selectedText ? (
+                  <div style={{ fontSize: "0.75rem", fontStyle: "italic", marginBottom: "0.5rem", color: "var(--color-primary)", maxHeight: "50px", overflow: "hidden" }}>
                     "{selectedText}"
                   </div>
-                  <textarea 
-                    className="input w-full" 
-                    placeholder="Add a note (optional)..."
-                    value={noteInput}
-                    onChange={(e) => setNoteInput(e.target.value)}
-                    style={{ marginBottom: "0.5rem", minHeight: "60px", fontSize: "0.8rem", padding: "0.5rem" }}
-                  />
-                  <div style={{ display: "flex", gap: "0.5rem" }}>
-                    <button className="btn btn-primary btn-sm w-full" onClick={handleSaveAnnotation}>Save Note</button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => setSelectedText("")}>Cancel</button>
+                ) : (
+                  <div style={{ fontSize: "0.75rem", marginBottom: "0.5rem", color: "var(--color-text-secondary)" }}>
+                    📌 Note for <strong>Page {pageNumber}</strong>
                   </div>
+                )}
+                <textarea 
+                  className="input w-full" 
+                  placeholder="Type note or takeaways..."
+                  value={noteInput}
+                  onChange={(e) => setNoteInput(e.target.value)}
+                  style={{ marginBottom: "0.5rem", minHeight: "55px", fontSize: "0.8rem", padding: "0.5rem" }}
+                />
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <button className="btn btn-primary btn-sm w-full" onClick={handleSaveAnnotation}>Save Note</button>
+                  {selectedText && (
+                    <button className="btn btn-ghost btn-sm" onClick={() => setSelectedText("")}>Clear</button>
+                  )}
                 </div>
-              )}
+              </div>
 
               {/* Saved Annotations List */}
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>

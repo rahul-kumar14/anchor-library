@@ -154,8 +154,15 @@ export default function ReaderPage() {
   // Keyboard navigation
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "ArrowRight") changePage(1);
-      if (e.key === "ArrowLeft") changePage(-1);
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        changePage(1);
+      }
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        changePage(-1);
+      }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -307,7 +314,7 @@ export default function ReaderPage() {
 
         {/* Center - PDF Renderer */}
         <div className={styles.pdfArea}>
-          <div className={`${styles.pdfWrapper} ${isFlipping ? styles.pageFlip : ''}`}>
+          <div className={styles.pdfWrapper}>
             <Document
               file={(() => {
                 if (book.pdf_url && book.pdf_url.includes("drive.google.com")) {
@@ -317,7 +324,7 @@ export default function ReaderPage() {
                 return book.pdf_url;
               })()}
               onLoadSuccess={onDocumentLoadSuccess}
-              loading={<div style={{ padding: "2rem" }}>Loading PDF from Google Drive...</div>}
+              loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book...</div>}
               error={
                 <div style={{ padding: "2rem", textAlign: "center" }}>
                   <p style={{ color: "red", marginBottom: "1rem" }}>Failed to load PDF directly.</p>
@@ -347,29 +354,74 @@ export default function ReaderPage() {
         <aside className={styles.sidebarRight}>
           <div className={styles.sidebarHeader}>📝 Notes & Highlights</div>
           <div className={styles.sidebarContent}>
-            <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginBottom: "1rem" }}>
-              Select text in the PDF to highlight it and add a note.
+            <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginBottom: "0.8rem" }}>
+              Highlight text to quote, or add a note for <strong>Page {pageNumber}</strong> directly:
             </p>
             
-            {/* New Annotation Form */}
-            {selectedText && (
-              <div style={{ background: "var(--color-surface-2)", padding: "1rem", borderRadius: "var(--radius-md)", marginBottom: "1rem", border: "1px solid var(--color-primary)" }}>
-                <div style={{ fontSize: "var(--text-xs)", fontStyle: "italic", marginBottom: "0.5rem", color: "var(--color-text-muted)", maxHeight: "60px", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {/* Annotation Form (Shows on text select OR user clicking Add Note) */}
+            <div style={{ background: "var(--color-surface-2)", padding: "1rem", borderRadius: "var(--radius-md)", marginBottom: "1rem", border: "1px solid var(--color-border)" }}>
+              {selectedText ? (
+                <div style={{ fontSize: "var(--text-xs)", fontStyle: "italic", marginBottom: "0.5rem", color: "var(--color-primary)", maxHeight: "60px", overflow: "hidden", textOverflow: "ellipsis" }}>
                   "{selectedText}"
                 </div>
-                <textarea 
-                  className="input w-full" 
-                  placeholder="Add a note (optional)..."
-                  value={noteInput}
-                  onChange={(e) => setNoteInput(e.target.value)}
-                  style={{ marginBottom: "0.5rem", minHeight: "60px" }}
-                />
-                <div style={{ display: "flex", gap: "0.5rem" }}>
-                  <button className="btn btn-primary btn-sm w-full" onClick={handleSaveAnnotation}>Save</button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setSelectedText("")}>Cancel</button>
+              ) : (
+                <div style={{ fontSize: "var(--text-xs)", marginBottom: "0.5rem", color: "var(--color-text-secondary)" }}>
+                  📌 Note for <strong>Page {pageNumber}</strong>
                 </div>
+              )}
+              <textarea 
+                className="input w-full" 
+                placeholder="Type your notes or insights here..."
+                value={noteInput}
+                onChange={(e) => setNoteInput(e.target.value)}
+                style={{ marginBottom: "0.5rem", minHeight: "65px" }}
+              />
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <button 
+                  className="btn btn-primary btn-sm w-full" 
+                  onClick={async () => {
+                    const textToSave = selectedText || `Page ${pageNumber} Note`;
+                    if (!noteInput.trim()) {
+                      alert("Please type a note first.");
+                      return;
+                    }
+                    if (!userId) {
+                      alert("Please login to save notes.");
+                      return;
+                    }
+                    const tempId = Date.now().toString();
+                    const newAnnotation = {
+                      id: tempId,
+                      user_id: userId,
+                      book_id: book.id,
+                      page_number: pageNumber,
+                      selected_text: textToSave,
+                      note: noteInput,
+                      created_at: new Date().toISOString()
+                    };
+                    setAnnotations([newAnnotation, ...annotations]);
+                    setSelectedText("");
+                    setNoteInput("");
+                    try {
+                      await supabase.from("annotations").insert({
+                        user_id: userId,
+                        book_id: book.id,
+                        page_number: pageNumber,
+                        selected_text: textToSave,
+                        note: noteInput
+                      });
+                    } catch (e) {
+                      console.error(e);
+                    }
+                  }}
+                >
+                  Save Note
+                </button>
+                {selectedText && (
+                  <button className="btn btn-ghost btn-sm" onClick={() => setSelectedText("")}>Clear Quote</button>
+                )}
               </div>
-            )}
+            </div>
 
             {/* Saved Annotations */}
             {annotations.filter(a => a.page_number === pageNumber).length > 0 && (
