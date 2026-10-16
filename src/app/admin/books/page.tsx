@@ -103,6 +103,12 @@ export default function AdminBooksPage() {
       if (pdfFile) {
         const uploaded = await handleFileUpload(pdfFile, "books")
         if (uploaded) finalPdfUrl = uploaded
+      } else if (finalPdfUrl && finalPdfUrl.includes("drive.google.com")) {
+        // Auto convert standard Google Drive view/share links to embeddable preview links
+        const driveMatch = finalPdfUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)
+        if (driveMatch && driveMatch[1]) {
+          finalPdfUrl = `https://drive.google.com/file/d/${driveMatch[1]}/preview`
+        }
       }
 
       // Author

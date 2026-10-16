@@ -307,22 +307,33 @@ export default function ReaderPage() {
 
         {/* Center - PDF Renderer */}
         <div className={styles.pdfArea}>
-          <div className={`${styles.pdfWrapper} ${isFlipping ? styles.pageFlip : ''}`}>
-            <Document
-              file={book.pdf_url}
-              onLoadSuccess={onDocumentLoadSuccess}
-              loading={<div style={{ padding: "2rem" }}>Loading PDF...</div>}
-              error={<div style={{ padding: "2rem", color: "red" }}>Failed to load PDF.</div>}
-            >
-              <Page 
-                pageNumber={pageNumber} 
-                renderTextLayer={true} 
-                renderAnnotationLayer={true}
-                scale={scale}
-                className={styles.pdfPageContent}
+          {book.pdf_url && book.pdf_url.includes("drive.google.com") ? (
+            <div style={{ width: "100%", height: "100%", minHeight: "85vh", display: "flex", flexDirection: "column" }}>
+              <iframe
+                src={book.pdf_url.includes("/preview") ? book.pdf_url : book.pdf_url.replace(/\/view(\?.*)?$/, "/preview")}
+                style={{ width: "100%", height: "100%", flex: 1, minHeight: "85vh", border: "none", borderRadius: "var(--radius-md)" }}
+                allow="autoplay"
+                title={book.title}
               />
-            </Document>
-          </div>
+            </div>
+          ) : (
+            <div className={`${styles.pdfWrapper} ${isFlipping ? styles.pageFlip : ''}`}>
+              <Document
+                file={book.pdf_url}
+                onLoadSuccess={onDocumentLoadSuccess}
+                loading={<div style={{ padding: "2rem" }}>Loading PDF...</div>}
+                error={<div style={{ padding: "2rem", color: "red" }}>Failed to load PDF.</div>}
+              >
+                <Page 
+                  pageNumber={pageNumber} 
+                  renderTextLayer={true} 
+                  renderAnnotationLayer={true}
+                  scale={scale}
+                  className={styles.pdfPageContent}
+                />
+              </Document>
+            </div>
+          )}
         </div>
 
         {/* Right Sidebar - Notes & Highlights */}
