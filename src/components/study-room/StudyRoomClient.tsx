@@ -197,8 +197,8 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   const [pageNumber, setPageNumber] = useState(1)
   const [scale, setScale] = useState(1.0)
   const [pdfBoxWidth, setPdfBoxWidth] = useState<number | null>(null)
-  const [sidebarWidth, setSidebarWidth] = useState(300)
-  const isDraggingSidebarRef = useRef(false)
+  const [rightPanelsWidth, setRightPanelsWidth] = useState(560) // 280px + 280px default
+  const isDraggingSplitterRef = useRef(false)
   
   // Annotations
   const [annotations, setAnnotations] = useState<any[]>([])
@@ -375,17 +375,18 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
     return () => ro.disconnect();
   }, [activeBook]);
 
-  // Handle dragging to resize right side panel
+  // Handle dragging splitter to resize PDF vs right panels
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isDraggingSidebarRef.current) return;
+      if (!isDraggingSplitterRef.current) return;
       const newWidth = window.innerWidth - e.clientX - 32;
-      if (newWidth >= 220 && newWidth <= 650) {
-        setSidebarWidth(newWidth);
+      // Allow right panels to range between 400px and 800px (or let PDF have remaining space)
+      if (newWidth >= 400 && newWidth <= Math.min(850, window.innerWidth - 350)) {
+        setRightPanelsWidth(newWidth);
       }
     };
     const handleMouseUp = () => {
-      isDraggingSidebarRef.current = false;
+      isDraggingSplitterRef.current = false;
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
@@ -697,8 +698,12 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
       <div 
         className={styles.roomGrid} 
         style={{ 
-          gridTemplateColumns: zenMode ? "1fr" : activeBook ? `minmax(0, 1fr) 10px ${sidebarWidth}px` : "1fr 380px", 
-          gap: activeBook ? "0" : undefined 
+          gridTemplateColumns: zenMode 
+            ? "1fr" 
+            : activeBook 
+              ? `minmax(0, 1fr) 10px minmax(200px, ${Math.round(rightPanelsWidth / 2)}px) minmax(200px, ${Math.round(rightPanelsWidth / 2)}px)` 
+              : "1fr 380px", 
+          gap: activeBook ? "0.75rem" : undefined 
         }}
       >
         
@@ -788,15 +793,15 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
               userSelect: "none",
               margin: "0 2px"
             }}
-            title="Drag left/right to resize panels"
+            title="Drag left/right to resize book vs side panels"
             onMouseDown={(e) => {
               e.preventDefault();
-              isDraggingSidebarRef.current = true;
+              isDraggingSplitterRef.current = true;
               document.body.style.cursor = "col-resize";
               document.body.style.userSelect = "none";
             }}
           >
-            <div style={{ width: "4px", height: "40px", borderRadius: "2px", background: "var(--color-border)" }} />
+            <div style={{ width: "4px", height: "48px", borderRadius: "2px", background: "var(--color-border)" }} />
           </div>
         )}
 
