@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
@@ -24,6 +24,8 @@ export default function ReaderPage() {
   const [numPages, setNumPages] = useState<number | null>(null)
   const [pageNumber, setPageNumber] = useState(1)
   const [scale, setScale] = useState(1.0)
+  const [containerWidth, setContainerWidth] = useState<number | null>(null)
+  const pdfContainerRef = useRef<HTMLDivElement>(null)
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
   const [isFlipping, setIsFlipping] = useState(false)
@@ -31,13 +33,29 @@ export default function ReaderPage() {
   const [noteInput, setNoteInput] = useState("")
   const [annotations, setAnnotations] = useState<any[]>([])
 
+  // Measure container width for auto-fit on load
+  useEffect(() => {
+    if (!pdfContainerRef.current) return;
+    const updateWidth = () => {
+      if (pdfContainerRef.current) {
+        // Leave ~40px breathing room
+        const w = pdfContainerRef.current.clientWidth - 48;
+        if (w > 200) setContainerWidth(w);
+      }
+    };
+    updateWidth();
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(pdfContainerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   useEffect(() => {
     async function init() {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session) setUserId(session.user.id)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) setUserId(session.user.id);
     }
-    init()
-  }, [supabase.auth])
+    init();
+  }, [supabase.auth]);
 
   useEffect(() => {
     async function loadBookAndProgress() {
@@ -313,7 +331,7 @@ export default function ReaderPage() {
         </aside>
 
         {/* Center - PDF Renderer */}
-        <div className={styles.pdfArea}>
+        <div className={styles.pdfArea} ref={pdfContainerRef}>
           <div className={styles.pdfWrapper}>
             <Document
               file={(() => {
@@ -344,6 +362,7 @@ export default function ReaderPage() {
                 renderTextLayer={true} 
                 renderAnnotationLayer={true}
                 scale={scale}
+                width={containerWidth ? Math.min(containerWidth, 800) : undefined}
                 className={styles.pdfPageContent}
               />
             </Document>

@@ -196,6 +196,9 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   const [numPages, setNumPages] = useState<number | null>(null)
   const [pageNumber, setPageNumber] = useState(1)
   const [scale, setScale] = useState(1.0)
+  const [pdfBoxWidth, setPdfBoxWidth] = useState<number | null>(null)
+  const [sidebarWidth, setSidebarWidth] = useState(300)
+  const isDraggingSidebarRef = useRef(false)
   
   // Annotations
   const [annotations, setAnnotations] = useState<any[]>([])
@@ -356,6 +359,43 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
       }
     }
   }, [activeBook])
+
+  // Auto measure PDF container width to fit 100% of the box
+  useEffect(() => {
+    if (!pdfContainerRef.current) return;
+    const updateWidth = () => {
+      if (pdfContainerRef.current) {
+        const w = pdfContainerRef.current.clientWidth - 40;
+        if (w > 250) setPdfBoxWidth(w);
+      }
+    };
+    updateWidth();
+    const ro = new ResizeObserver(updateWidth);
+    ro.observe(pdfContainerRef.current);
+    return () => ro.disconnect();
+  }, [activeBook]);
+
+  // Handle dragging to resize right side panel
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingSidebarRef.current) return;
+      const newWidth = window.innerWidth - e.clientX - 32;
+      if (newWidth >= 220 && newWidth <= 650) {
+        setSidebarWidth(newWidth);
+      }
+    };
+    const handleMouseUp = () => {
+      isDraggingSidebarRef.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
 
   // Capture text selection strictly within the PDF reader
   useEffect(() => {
@@ -654,28 +694,34 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
       )}
 
       {/* Main Grid changes dynamically if reading a book */}
-      <div className={styles.roomGrid} style={{ gridTemplateColumns: zenMode ? "1fr" : activeBook ? "minmax(0, 1fr) 280px 280px" : "1fr 380px", gap: activeBook ? "1rem" : undefined }}>
+      <div 
+        className={styles.roomGrid} 
+        style={{ 
+          gridTemplateColumns: zenMode ? "1fr" : activeBook ? `minmax(0, 1fr) 10px ${sidebarWidth}px` : "1fr 380px", 
+          gap: activeBook ? "0" : undefined 
+        }}
+      >
         
         {/* IF READING: Show PDF Viewer Area */}
         {activeBook && !zenMode && (
           <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-lg)", border: "1px solid var(--color-border)", display: "flex", flexDirection: "column", overflow: "hidden", minHeight: "75vh" }}>
-             <div style={{ padding: "1rem", borderBottom: "1px solid var(--color-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+             <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid var(--color-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  <h3 style={{ fontSize: "1.2rem", fontWeight: 700 }}>{activeBook.title}</h3>
-                  <p style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>By {activeBook.authors?.name || activeBook.author || "Unknown"}</p>
+                  <h3 style={{ fontSize: "1.1rem", fontWeight: 700 }}>{activeBook.title}</h3>
+                  <p style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>By {activeBook.authors?.name || activeBook.author || "Unknown"}</p>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                   <button className="btn btn-ghost btn-sm" onClick={() => setScale(s => Math.max(0.5, s - 0.2))}>➖</button>
                   <span style={{ fontSize: "0.8rem", color: "var(--color-text-secondary)" }}>{Math.round(scale * 100)}%</span>
                   <button className="btn btn-ghost btn-sm" onClick={() => setScale(s => Math.min(3.0, s + 0.2))}>➕</button>
-                  <button className="btn btn-primary btn-sm" onClick={() => setActiveBook(null)} style={{ marginLeft: "1rem" }}>Close Book</button>
+                  <button className="btn btn-primary btn-sm" onClick={() => setActiveBook(null)} style={{ marginLeft: "0.5rem" }}>Close Book</button>
                 </div>
              </div>
              
              {/* Actual PDF Viewer */}
-             <div ref={pdfContainerRef} style={{ flex: 1, background: "#e5e5e5", overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", width: "100%", height: "100%" }}>
+             <div ref={pdfContainerRef} style={{ flex: 1, background: "#e5e5e5", overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", width: "100%", height: "100%", padding: "1rem" }}>
                {activeBook.pdf_url ? (
-                 <div style={{ margin: "2rem 0", boxShadow: "0 8px 32px rgba(0,0,0,0.15)" }}>
+                 <div style={{ margin: "auto 0", boxShadow: "0 8px 32px rgba(0,0,0,0.15)" }}>
                    <Document
                      file={(() => {
                        if (activeBook.pdf_url && activeBook.pdf_url.includes("drive.google.com")) {
@@ -685,7 +731,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                        return activeBook.pdf_url;
                      })()}
                      onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-                     loading={<div style={{ padding: "2rem" }}>📖 Loading Book...</div>}
+                     loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book...</div>}
                      error={
                        <div style={{ padding: "2rem", textAlign: "center" }}>
                          <p style={{ color: "red", marginBottom: "1rem" }}>Failed to load PDF.</p>
@@ -705,6 +751,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                        renderTextLayer={true} 
                        renderAnnotationLayer={true}
                        scale={scale}
+                       width={pdfBoxWidth ? Math.min(pdfBoxWidth, 750) : undefined}
                      />
                    </Document>
                  </div>
@@ -726,6 +773,30 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                 </span>
                 <button className="btn btn-secondary btn-sm" onClick={() => changePage(1)} disabled={numPages ? pageNumber >= numPages : false}>Next Page →</button>
              </div>
+          </div>
+        )}
+
+        {/* Draggable Divider Bar */}
+        {activeBook && !zenMode && (
+          <div
+            style={{
+              width: "10px",
+              cursor: "col-resize",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              userSelect: "none",
+              margin: "0 2px"
+            }}
+            title="Drag left/right to resize panels"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              isDraggingSidebarRef.current = true;
+              document.body.style.cursor = "col-resize";
+              document.body.style.userSelect = "none";
+            }}
+          >
+            <div style={{ width: "4px", height: "40px", borderRadius: "2px", background: "var(--color-border)" }} />
           </div>
         )}
 
