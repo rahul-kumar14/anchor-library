@@ -25,24 +25,8 @@ const AMBIENT_SOUNDS = [
   { id: "whitenoise", name: "Noise", icon: "📻", url: "https://actions.google.com/sounds/v1/ambiences/white_noise.ogg" },
 ]
 
-const ROOM_BOOKS: Record<string, { id: string; title: string; author: string; cover: string }[]> = {
-  upsc: [
-    { id: "b1", title: "Indian Polity", author: "M. Laxmikanth", cover: "🏛️" },
-    { id: "b2", title: "A Brief History of Modern India", author: "Spectrum", cover: "📜" },
-  ],
-  coding: [
-    { id: "b3", title: "Cracking the Coding Interview", author: "Gayle L. McDowell", cover: "💻" },
-    { id: "b4", title: "Introduction to Algorithms", author: "Thomas H. Cormen", cover: "🔢" },
-  ],
-  "night-owl": [
-    { id: "b5", title: "Atomic Habits", author: "James Clear", cover: "⚛️" },
-    { id: "b6", title: "Deep Work", author: "Cal Newport", cover: "🧠" },
-  ],
-  reading: [
-    { id: "b7", title: "The Alchemist", author: "Paulo Coelho", cover: "✨" },
-    { id: "b8", title: "1984", author: "George Orwell", cover: "👁️" },
-  ],
-}
+// Dummy fallback removed - books load dynamically from Supabase
+const ROOM_BOOKS: Record<string, { id: string; title: string; author: string; cover: string }[]> = {}
 
 export default function StudyRoomClient({ room, roomId }: { room: any; roomId: string }) {
   const router = useRouter()
@@ -80,6 +64,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
     gate: "00000000-0000-0000-0000-000000000005",
     coding: "00000000-0000-0000-0000-000000000006",
     reading: "00000000-0000-0000-0000-000000000007",
+    "english-lit": "00000000-0000-0000-0000-000000000009",
     language: "00000000-0000-0000-0000-000000000008",
   }
 
@@ -236,34 +221,38 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
         
         if (catData) {
           let keywords: string[] = [];
-          if (roomId === "reading") keywords = ["fiction", "literature", "novel", "story"];
+          if (roomId === "reading") keywords = ["fiction", "literature", "novel", "story", "poetry", "classic"];
+          else if (roomId === "english-lit") keywords = ["english", "english-literature", "classics", "novel"];
           else if (roomId === "coding") keywords = ["programming", "tech", "coding", "computer", "dsa"];
-          else if (roomId === "upsc") keywords = ["history", "polity", "upsc", "geography"];
+          else if (roomId === "upsc") keywords = ["history", "polity", "upsc", "geography", "civil"];
           else if (roomId === "language") keywords = ["language", "grammar", "english", "hindi"];
           else if (roomId === "gate") keywords = ["science", "engineering", "math"];
-          else if (roomId === "pomodoro") keywords = ["productivity", "habit", "focus"];
+          else if (roomId === "pomodoro") keywords = ["productivity", "habit", "focus", "self-help"];
           
           if (keywords.length > 0) {
             const matchedCategoryIds = catData
-              .filter(c => keywords.some(k => c.slug.toLowerCase().includes(k) || c.name.toLowerCase().includes(k)))
+              .filter(c => keywords.some(k => (c.slug && c.slug.toLowerCase().includes(k)) || (c.name && c.name.toLowerCase().includes(k))))
               .map(c => c.id);
               
-            filtered = data.filter(b => 
+            const roomFiltered = data.filter(b => 
               matchedCategoryIds.includes(b.category_id) || 
-              keywords.some(k => b.title.toLowerCase().includes(k))
+              keywords.some(k => (b.title && b.title.toLowerCase().includes(k)) || (b.genre && b.genre.toLowerCase().includes(k)))
             );
+
+            // If room-specific books exist, show them; otherwise show real library books (never dummy)
+            filtered = roomFiltered.length > 0 ? roomFiltered : data;
           }
         }
         
-        setRealBooks(filtered.length > 0 ? filtered : ROOM_BOOKS[roomId] || ROOM_BOOKS["night-owl"])
+        setRealBooks(filtered);
       } else {
-        setRealBooks(ROOM_BOOKS[roomId] || ROOM_BOOKS["night-owl"])
+        setRealBooks([]);
       }
     }
     fetchBooks()
   }, [roomId])
 
-  const recommendedBooks = realBooks.length > 0 ? realBooks : (ROOM_BOOKS[roomId] || ROOM_BOOKS["night-owl"])
+  const recommendedBooks = realBooks;
 
   // Register active study room session globally so presence continues across pages
   useEffect(() => {

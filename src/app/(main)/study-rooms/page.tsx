@@ -9,11 +9,12 @@ const ROOM_TYPES = [
   { id: "silent", icon: "🔕", name: "Silent Study", desc: "Zero distraction. Pure focus.", color: "#6C63FF" },
   { id: "pomodoro", icon: "🍅", name: "Pomodoro Focus", desc: "25 min work, 5 min break cycles.", color: "#FF6B6B" },
   { id: "night-owl", icon: "🌙", name: "Night Owl Study", desc: "Late night grind. You are not alone.", color: "#4A90D9" },
+  { id: "reading", icon: "📖", name: "Hindi Literature & Books", desc: "Read Hindi literature, fiction, novels & poetry.", color: "#F59E0B" },
+  { id: "english-lit", icon: "📚", name: "English Literature", desc: "English classics, novels, prose & world literature.", color: "#0D9488" },
   { id: "upsc", icon: "📋", name: "UPSC / Civil Services", desc: "IAS/IPS aspirants study room.", color: "#FFB347" },
-  { id: "gate", icon: "⚙️", name: "GATE / JEE Prep", desc: "Engineering & science exam prep.", color: "#A78BFA" },
-  { id: "coding", icon: "💻", name: "Coding & DSA", desc: "DSA, development, algorithms.", color: "#00D4AA" },
-  { id: "reading", icon: "📖", name: "Reading & Literature", desc: "Read books, share takeaways.", color: "#F59E0B" },
-  { id: "language", icon: "🌐", name: "Language Learning", desc: "English, Hindi, Spanish & more.", color: "#EC4899" },
+  { id: "coding", icon: "💻", name: "Coding & DSA", desc: "DSA, development, tech & algorithms.", color: "#00D4AA" },
+  { id: "gate", icon: "⚙️", name: "GATE / Engineering", desc: "Engineering & science exam prep.", color: "#A78BFA" },
+  { id: "language", icon: "🌐", name: "Language Learning", desc: "Grammar, vocabulary & linguistic practice.", color: "#EC4899" },
 ]
 
 export default function StudyRoomsPage() {

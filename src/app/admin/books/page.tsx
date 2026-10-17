@@ -17,6 +17,7 @@ export default function AdminBooksPage() {
   const [authorName, setAuthorName] = useState("")
   const [categoryId, setCategoryId] = useState("")
   const [categoryName, setCategoryName] = useState("")
+  const [targetRoom, setTargetRoom] = useState("")
   const [description, setDescription] = useState("")
   const [coverUrl, setCoverUrl] = useState("")
   const [pdfUrl, setPdfUrl] = useState("")
@@ -66,7 +67,7 @@ export default function AdminBooksPage() {
 
   const resetForm = () => {
     setTitle(""); setAuthorName(""); setDescription(""); setCoverUrl(""); setPdfUrl(""); setTotalPages("")
-    setCoverFile(null); setPdfFile(null); setCategoryName(""); setCategoryId("")
+    setCoverFile(null); setPdfFile(null); setCategoryName(""); setCategoryId(""); setTargetRoom("")
     setEditingBookId(null)
   }
 
@@ -76,6 +77,7 @@ export default function AdminBooksPage() {
     setAuthorName(book.author || book.authors?.name || "")
     setCategoryId(book.category_id || "")
     setCategoryName(book.genre || book.categories?.name || "")
+    setTargetRoom(book.target_room || "")
     setDescription(book.description || "")
     setCoverUrl(book.cover_url || "")
     setPdfUrl(book.pdf_url || "")
@@ -229,7 +231,19 @@ export default function AdminBooksPage() {
               <div className={styles.field}>
                 <label className={styles.label}>Category / Genre</label>
                 {categories.length > 0 ? (
-                  <select className={styles.input} value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+                  <select className={styles.input} value={categoryId} onChange={(e) => {
+                    setCategoryId(e.target.value);
+                    // Auto suggest matching study room if user selects a study room category
+                    const found = categories.find(c => String(c.id) === String(e.target.value));
+                    if (found) {
+                      if (found.slug === "upsc") setTargetRoom("upsc");
+                      else if (found.slug === "coding") setTargetRoom("coding");
+                      else if (found.slug === "engineering") setTargetRoom("gate");
+                      else if (found.slug === "language") setTargetRoom("language");
+                      else if (found.slug === "english-literature") setTargetRoom("english-lit");
+                      else if (found.slug === "fiction" || found.slug === "poetry" || found.slug === "classic") setTargetRoom("reading");
+                    }
+                  }}>
                     <option value="">-- Select Category --</option>
                     {categories.map((c) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
@@ -243,6 +257,48 @@ export default function AdminBooksPage() {
                   />
                 )}
               </div>
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label}>
+                🏛️ Target Study Room <span style={{ fontSize: "0.75rem", color: "var(--adm-muted)", fontWeight: 400 }}>(Display directly in this room's book list)</span>
+              </label>
+              <select className={styles.input} value={targetRoom} onChange={(e) => {
+                const roomVal = e.target.value;
+                setTargetRoom(roomVal);
+                // Also auto set category if empty
+                if (!categoryId) {
+                  if (roomVal === "upsc") {
+                    const c = categories.find(cat => cat.slug === "upsc");
+                    if (c) setCategoryId(String(c.id));
+                  } else if (roomVal === "coding") {
+                    const c = categories.find(cat => cat.slug === "coding");
+                    if (c) setCategoryId(String(c.id));
+                  } else if (roomVal === "english-lit") {
+                    const c = categories.find(cat => cat.slug === "english-literature");
+                    if (c) setCategoryId(String(c.id));
+                  } else if (roomVal === "reading") {
+                    const c = categories.find(cat => cat.slug === "fiction");
+                    if (c) setCategoryId(String(c.id));
+                  } else if (roomVal === "gate") {
+                    const c = categories.find(cat => cat.slug === "engineering" || cat.slug === "science");
+                    if (c) setCategoryId(String(c.id));
+                  } else if (roomVal === "language") {
+                    const c = categories.find(cat => cat.slug === "language");
+                    if (c) setCategoryId(String(c.id));
+                  }
+                }
+              }}>
+                <option value="">-- All Rooms / General Library --</option>
+                <option value="reading">📖 Hindi Literature & Books</option>
+                <option value="english-lit">📚 English Literature Room</option>
+                <option value="upsc">📋 UPSC / Civil Services</option>
+                <option value="coding">💻 Coding & DSA Room</option>
+                <option value="gate">⚙️ GATE / Engineering & Science</option>
+                <option value="language">🌐 Language Learning</option>
+                <option value="pomodoro">🍅 Pomodoro & Self-Help</option>
+                <option value="night-owl">🌙 Night Owl General Study</option>
+              </select>
             </div>
 
             <div className={styles.field}>
