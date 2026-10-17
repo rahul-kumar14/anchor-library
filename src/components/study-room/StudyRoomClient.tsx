@@ -40,18 +40,12 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   const [activeTab, setActiveTab] = useState<"chat" | "library">("library") 
   const [realBooks, setRealBooks] = useState<any[]>([])
   const [activeBook, setActiveBook] = useState<any | null>(null)
+  const [pdfLoadFailed, setPdfLoadFailed] = useState(false)
 
-  // Client-only setup for pdfjs worker
+  // Client-only setup for pdfjs worker with unpkg fallback
   useEffect(() => {
     if (typeof window !== "undefined" && !pdfjs.GlobalWorkerOptions.workerSrc) {
-      try {
-        pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-          'pdfjs-dist/build/pdf.worker.min.mjs',
-          import.meta.url,
-        ).toString()
-      } catch (e) {
-        console.error("Failed to initialize pdf worker:", e)
-      }
+      pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
     }
   }, [])
 
@@ -772,8 +766,15 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                         }
                         return activeBook.pdf_url;
                       })()}
-                      onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-                     loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book...</div>}
+                      onLoadSuccess={({ numPages }) => {
+                        setNumPages(numPages)
+                        setPdfLoadFailed(false)
+                      }}
+                      onLoadError={(err) => {
+                        console.warn("PDF render failed in study room:", err)
+                        setPdfLoadFailed(true)
+                      }}
+                      loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book...</div>}
                      error={
                        <div style={{ padding: "2rem", textAlign: "center" }}>
                          <p style={{ color: "red", marginBottom: "1rem" }}>Failed to load PDF.</p>
