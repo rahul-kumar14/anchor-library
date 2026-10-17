@@ -217,30 +217,53 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
         .limit(30)
         
       if (data) {
-        let filtered = data;
+        let filtered: any[] = [];
         
         if (catData) {
           let keywords: string[] = [];
-          if (roomId === "reading") keywords = ["fiction", "literature", "novel", "story", "poetry", "classic"];
-          else if (roomId === "english-lit") keywords = ["english", "english-literature", "classics", "novel"];
-          else if (roomId === "coding") keywords = ["programming", "tech", "coding", "computer", "dsa"];
-          else if (roomId === "upsc") keywords = ["history", "polity", "upsc", "geography", "civil"];
-          else if (roomId === "language") keywords = ["language", "grammar", "english", "hindi"];
-          else if (roomId === "gate") keywords = ["science", "engineering", "math"];
-          else if (roomId === "pomodoro") keywords = ["productivity", "habit", "focus", "self-help"];
+          if (roomId === "reading") {
+            // Hindi Literature room gets Hindi literature books
+            keywords = ["fiction", "literature", "novel", "story", "poetry", "classic", "philosophy", "biography"];
+          } else if (roomId === "english-lit") {
+            keywords = ["english", "english-literature"];
+          } else if (roomId === "coding") {
+            keywords = ["programming", "tech", "coding", "computer", "dsa"];
+          } else if (roomId === "upsc") {
+            keywords = ["history", "polity", "upsc", "geography", "civil"];
+          } else if (roomId === "language") {
+            keywords = ["language", "grammar"];
+          } else if (roomId === "gate") {
+            keywords = ["science", "engineering", "math"];
+          } else if (roomId === "pomodoro") {
+            keywords = ["productivity", "habit", "focus", "self-help"];
+          } else if (roomId === "silent" || roomId === "night-owl") {
+            // General rooms show all available books
+            filtered = data;
+          }
           
           if (keywords.length > 0) {
             const matchedCategoryIds = catData
               .filter(c => keywords.some(k => (c.slug && c.slug.toLowerCase().includes(k)) || (c.name && c.name.toLowerCase().includes(k))))
               .map(c => c.id);
               
-            const roomFiltered = data.filter(b => 
-              matchedCategoryIds.includes(b.category_id) || 
-              keywords.some(k => (b.title && b.title.toLowerCase().includes(k)) || (b.genre && b.genre.toLowerCase().includes(k)))
-            );
+            filtered = data.filter(b => {
+              // For English Literature room, strictly require English language or English keywords
+              if (roomId === "english-lit") {
+                return (b.language && b.language.toLowerCase() === "english") ||
+                  matchedCategoryIds.includes(b.category_id) ||
+                  keywords.some(k => (b.genre && b.genre.toLowerCase().includes(k)));
+              }
 
-            // If room-specific books exist, show them; otherwise show real library books (never dummy)
-            filtered = roomFiltered.length > 0 ? roomFiltered : data;
+              // For Hindi Literature room, match Hindi literature categories or Hindi language
+              if (roomId === "reading") {
+                return matchedCategoryIds.includes(b.category_id) ||
+                  keywords.some(k => (b.genre && b.genre.toLowerCase().includes(k))) ||
+                  (b.language && b.language.toLowerCase() === "hindi");
+              }
+
+              return matchedCategoryIds.includes(b.category_id) || 
+                keywords.some(k => (b.title && b.title.toLowerCase().includes(k)) || (b.genre && b.genre.toLowerCase().includes(k)));
+            });
           }
         }
         
@@ -1343,24 +1366,39 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                   </p>
                 )}
                 <div style={{ display: "flex", flexDirection: "column", gap: "1rem", overflowY: "auto", flex: 1, maxHeight: activeBook ? "50vh" : "600px", paddingRight: "4px" }}>
-                  {recommendedBooks.map(b => (
-                    <div key={b.id} style={{ display: "flex", gap: "1rem", padding: "0.8rem", background: "var(--color-surface-2)", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)" }}>
-                      <div style={{ width: activeBook ? "40px" : "50px", height: activeBook ? "60px" : "70px", background: "var(--color-surface-3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: activeBook ? "1rem" : "1.5rem", borderRadius: "4px", flexShrink: 0, overflow: "hidden" }}>
-                        {b.cover_url ? <img src={b.cover_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (b.cover || "📘")}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: activeBook ? "0.8rem" : "0.9rem", fontWeight: 700, lineHeight: 1.2 }} className="truncate" title={b.title}>{b.title}</div>
-                        <div style={{ fontSize: "0.75rem", color: "var(--color-text-secondary)", marginTop: "4px" }} className="truncate">By {b.authors?.name || b.author || "Unknown"}</div>
-                        <button 
-                          className="btn btn-primary btn-sm" 
-                          style={{ marginTop: "0.5rem", width: "100%", justifyContent: "center" }}
-                          onClick={() => setActiveBook(activeBook?.id === b.id ? null : b)}
-                        >
-                          {activeBook?.id === b.id ? "Close" : "Read Now"}
-                        </button>
-                      </div>
+                  {recommendedBooks.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "2rem 1rem", background: "var(--color-surface-2)", borderRadius: "var(--radius-md)", border: "1px dashed var(--color-border)" }}>
+                      <span style={{ fontSize: "2.5rem" }}>📖</span>
+                      <p style={{ fontSize: "0.85rem", fontWeight: 600, marginTop: "0.5rem", color: "var(--color-text-primary)" }}>
+                        No books assigned to this room yet
+                      </p>
+                      <p style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: "4px" }}>
+                        Books will appear here once added in Admin Panel.
+                      </p>
+                      <Link href="/library" className="btn btn-secondary btn-sm" style={{ marginTop: "1rem", display: "inline-block" }}>
+                        Browse Main Library 📚
+                      </Link>
                     </div>
-                  ))}
+                  ) : (
+                    recommendedBooks.map(b => (
+                      <div key={b.id} style={{ display: "flex", gap: "1rem", padding: "0.8rem", background: "var(--color-surface-2)", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)" }}>
+                        <div style={{ width: activeBook ? "40px" : "50px", height: activeBook ? "60px" : "70px", background: "var(--color-surface-3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: activeBook ? "1rem" : "1.5rem", borderRadius: "4px", flexShrink: 0, overflow: "hidden" }}>
+                          {b.cover_url ? <img src={b.cover_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (b.cover || "📘")}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: activeBook ? "0.8rem" : "0.9rem", fontWeight: 700, lineHeight: 1.2 }} className="truncate" title={b.title}>{b.title}</div>
+                          <div style={{ fontSize: "0.75rem", color: "var(--color-text-secondary)", marginTop: "4px" }} className="truncate">By {b.authors?.name || b.author || "Unknown"}</div>
+                          <button 
+                            className="btn btn-primary btn-sm" 
+                            style={{ marginTop: "0.5rem", width: "100%", justifyContent: "center" }}
+                            onClick={() => setActiveBook(activeBook?.id === b.id ? null : b)}
+                          >
+                            {activeBook?.id === b.id ? "Close" : "Read Now"}
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             )}
