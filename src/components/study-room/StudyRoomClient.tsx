@@ -149,20 +149,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
     return () => clearInterval(timer)
   }, [currentConvId, user?.id])
 
-  // Real-time broadcast channel listener
-  useEffect(() => {
-    if (!channel) return
 
-    channel.on("broadcast", { event: "chat_msg" }, (payload: any) => {
-      const msg = payload.payload
-      if (msg && msg.conversation_id === currentConvId) {
-        setDbMessages((prev) => {
-          if (prev.some((m) => m.id === msg.id)) return prev
-          return [...prev, msg]
-        })
-      }
-    })
-  }, [channel, currentConvId])
 
   // Scroll chat container to bottom when messages update (without stealing window page scroll)
   useEffect(() => {
@@ -295,48 +282,61 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
 
   // Fetch user and connect to Presence
   useEffect(() => {
+    let isSubscribed = true
     const ch = supabase.channel(`room:${roomId}`, {
       config: { presence: { key: "" } },
     })
-    setChannel(ch)
 
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) {
-        setUser(data.user)
-        const username = data.user.user_metadata?.username || data.user.email?.split("@")[0] || "User"
-        
-        ch.on("presence", { event: "sync" }, () => {
-          const state = ch.presenceState()
-          const users: Record<string, UserPresence> = {}
-          for (const key in state) {
-            // @ts-ignore
-            users[key] = state[key][0] as UserPresence
-          }
-          setActiveUsers(users)
-        })
+    // MUST register callbacks BEFORE subscribe()
+    ch.on("presence", { event: "sync" }, () => {
+      const state = ch.presenceState()
+      const users: Record<string, UserPresence> = {}
+      for (const key in state) {
+        // @ts-ignore
+        users[key] = state[key][0] as UserPresence
+      }
+      setActiveUsers(users)
+    })
 
-        ch.on("broadcast", { event: "chat" }, (payload) => {
-          setChatMessages((prev) => [...prev, payload.payload])
-        })
+    ch.on("broadcast", { event: "chat" }, (payload) => {
+      setChatMessages((prev) => [...prev, payload.payload])
+    })
 
-        ch.subscribe(async (status) => {
-          if (status === "SUBSCRIBED") {
-            await ch.track({
-              id: data.user.id,
-              username,
-              status: activeBook ? "Reading intensely 📖" : "Studying quietly ✍️",
-              readingBook: activeBook?.title || null,
-              joined_at: new Date().toISOString(),
-            })
-          }
+    ch.on("broadcast", { event: "chat_msg" }, (payload: any) => {
+      const msg = payload.payload
+      if (msg && msg.conversation_id === currentConvId) {
+        setDbMessages((prev) => {
+          if (prev.some((m) => m.id === msg.id)) return prev
+          return [...prev, msg]
         })
       }
     })
 
+    // Now subscribe
+    ch.subscribe(async (status) => {
+      if (status === "SUBSCRIBED" && isSubscribed) {
+        const { data: { user: currentUser } } = await supabase.auth.getUser()
+        if (currentUser) {
+          setUser(currentUser)
+          const username = currentUser.user_metadata?.username || currentUser.email?.split("@")[0] || "User"
+          await ch.track({
+            id: currentUser.id,
+            username,
+            status: activeBook ? "Reading intensely 📖" : "Studying quietly ✍️",
+            readingBook: activeBook?.title || null,
+            joined_at: new Date().toISOString(),
+          })
+        }
+      }
+    })
+
+    setChannel(ch)
+
     return () => {
-      // If user still has this room active in session (e.g. browsing Library/Dashboard),
-      // we do not kill the audio or presence abruptly!
+      isSubscribed = false
       if (audioElem) audioElem.pause()
+      ch.unsubscribe()
+      supabase.removeChannel(ch)
     }
   }, [roomId])
 
@@ -347,14 +347,16 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
     updateSessionStatus(currentStatus, currentBook)
 
     if (channel && user) {
-      const username = user.user_metadata?.username || user.email?.split("@")[0] || "User"
-      channel.track({
-        id: user.id,
-        username,
-        status: currentStatus,
-        readingBook: currentBook,
-        joined_at: new Date().toISOString(),
-      })
+      try {
+        const username = user.user_metadata?.username || user.email?.split("@")[0] || "User"
+        channel.track({
+          id: user.id,
+          username,
+          status: currentStatus,
+          readingBook: currentBook,
+          joined_at: new Date().toISOString(),
+        }).catch?.(() => {})
+      } catch {}
     }
     
     if (activeBook) {
