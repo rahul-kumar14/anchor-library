@@ -343,9 +343,16 @@ export default function ReaderPage() {
           <div className={styles.pdfWrapper}>
             <Document
               file={(() => {
-                if (book.pdf_url && book.pdf_url.includes("drive.google.com")) {
+                if (!book.pdf_url) return null;
+                if (book.pdf_url.includes("drive.google.com")) {
                   const m = book.pdf_url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
                   if (m && m[1]) return `/api/pdf-proxy?id=${m[1]}`;
+                }
+                if (book.pdf_url.startsWith("http://") || book.pdf_url.startsWith("https://")) {
+                  // If external, route through proxy to prevent CORS blocking
+                  if (typeof window !== "undefined" && !book.pdf_url.startsWith(window.location.origin)) {
+                    return `/api/pdf-proxy?url=${encodeURIComponent(book.pdf_url)}`;
+                  }
                 }
                 return book.pdf_url;
               })()}

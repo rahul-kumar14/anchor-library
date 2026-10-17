@@ -3,15 +3,18 @@ import { NextRequest, NextResponse } from "next/server";
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const fileId = searchParams.get("id");
+  const externalUrl = searchParams.get("url");
 
-  if (!fileId) {
-    return new NextResponse("File ID required", { status: 400 });
+  if (!fileId && !externalUrl) {
+    return new NextResponse("File ID or URL required", { status: 400 });
   }
 
-  const driveDownloadUrl = `https://drive.usercontent.google.com/download?id=${fileId}&export=download`;
+  const targetUrl = fileId
+    ? `https://drive.usercontent.google.com/download?id=${fileId}&export=download`
+    : externalUrl!;
 
   try {
-    const upstreamRes = await fetch(driveDownloadUrl);
+    const upstreamRes = await fetch(targetUrl);
 
     if (!upstreamRes.ok) {
       return new NextResponse(`Failed to fetch from Drive: ${upstreamRes.statusText}`, { status: upstreamRes.status });

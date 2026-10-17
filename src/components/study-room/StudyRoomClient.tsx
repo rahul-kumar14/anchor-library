@@ -765,6 +765,11 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                           const m = activeBook.pdf_url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
                           if (m && m[1]) return `/api/pdf-proxy?id=${m[1]}`;
                         }
+                        if (activeBook.pdf_url.startsWith("http://") || activeBook.pdf_url.startsWith("https://")) {
+                          if (typeof window !== "undefined" && !activeBook.pdf_url.startsWith(window.location.origin)) {
+                            return `/api/pdf-proxy?url=${encodeURIComponent(activeBook.pdf_url)}`;
+                          }
+                        }
                         return activeBook.pdf_url;
                       })()}
                       onLoadSuccess={({ numPages }) => setNumPages(numPages)}
