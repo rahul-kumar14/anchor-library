@@ -727,15 +727,20 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
              <div ref={pdfContainerRef} style={{ flex: 1, background: "#e5e5e5", overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", width: "100%", height: "100%", padding: "1rem" }}>
                {activeBook.pdf_url ? (
                  <div style={{ margin: "auto 0", boxShadow: "0 8px 32px rgba(0,0,0,0.15)" }}>
-                   <Document
-                     file={(() => {
-                       if (activeBook.pdf_url && activeBook.pdf_url.includes("drive.google.com")) {
-                         const m = activeBook.pdf_url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-                         if (m && m[1]) return `/api/pdf-proxy?id=${m[1]}`;
-                       }
-                       return activeBook.pdf_url;
-                     })()}
-                     onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+                    <Document
+                      file={(() => {
+                        if (activeBook.pdf_url && activeBook.pdf_url.includes("drive.google.com")) {
+                          const m = activeBook.pdf_url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+                          if (m && m[1]) return `/api/pdf-proxy?id=${m[1]}`;
+                        }
+                        return activeBook.pdf_url;
+                      })()}
+                      options={{
+                        disableAutoFetch: false,
+                        disableStream: false,
+                        disableRange: false,
+                      }}
+                      onLoadSuccess={({ numPages }) => setNumPages(numPages)}
                      loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book...</div>}
                      error={
                        <div style={{ padding: "2rem", textAlign: "center" }}>
