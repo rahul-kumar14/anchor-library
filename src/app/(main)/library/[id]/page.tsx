@@ -49,7 +49,9 @@ export default async function BookDetailPage({ params }: { params: Promise<{ id:
           </div>
           <div className={styles.infoSection}>
             <h1 className={`${styles.bookTitle} heading-serif`}>{book.title}</h1>
-            {book.authors && <p className={styles.bookAuthor}>by {book.authors.name}</p>}
+            {(book.authors?.name || book.author) && (
+              <p className={styles.bookAuthor}>by {book.authors?.name || book.author}</p>
+            )}
             {book.description && (
               <div className={styles.descSection}>
                 <h2 className={styles.descTitle}>About this Book</h2>
