@@ -735,11 +735,6 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                         }
                         return activeBook.pdf_url;
                       })()}
-                      options={{
-                        disableAutoFetch: false,
-                        disableStream: false,
-                        disableRange: false,
-                      }}
                       onLoadSuccess={({ numPages }) => setNumPages(numPages)}
                      loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book...</div>}
                      error={

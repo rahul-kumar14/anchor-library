@@ -341,11 +341,6 @@ export default function ReaderPage() {
                 }
                 return book.pdf_url;
               })()}
-              options={{
-                disableAutoFetch: false,
-                disableStream: false,
-                disableRange: false,
-              }}
               onLoadSuccess={onDocumentLoadSuccess}
               loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book...</div>}
               error={
