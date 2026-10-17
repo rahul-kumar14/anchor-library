@@ -109,11 +109,19 @@ export default function ReaderPage() {
     const newPage = pageNumber + offset;
     if (newPage < 1 || (numPages && newPage > numPages)) return;
     
+    const currentScrollY = typeof window !== "undefined" ? window.scrollY : 0;
+
     // Trigger animation
     setIsFlipping(true);
     setTimeout(() => setIsFlipping(false), 300); // match CSS duration
     
     setPageNumber(newPage);
+
+    requestAnimationFrame(() => {
+      if (typeof window !== "undefined" && window.scrollY !== currentScrollY) {
+        window.scrollTo({ top: currentScrollY, behavior: "instant" as ScrollBehavior });
+      }
+    });
   }
 
   // Save reading progress whenever pageNumber changes

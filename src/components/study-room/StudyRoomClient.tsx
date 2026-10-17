@@ -626,12 +626,22 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   const activeUserList = Object.values(activeUsers)
 
   function changePage(offset: number) {
+    // Preserve current window scroll position so page doesn't jump
+    const currentScrollY = typeof window !== "undefined" ? window.scrollY : 0;
+    
     setPageNumber(prev => {
       const next = prev + offset;
       if (next < 1) return 1;
       if (numPages && next > numPages) return numPages;
       return next;
-    })
+    });
+
+    // Restore scroll position after React updates DOM
+    requestAnimationFrame(() => {
+      if (typeof window !== "undefined" && window.scrollY !== currentScrollY) {
+        window.scrollTo({ top: currentScrollY, behavior: "instant" as ScrollBehavior });
+      }
+    });
   }
 
   return (
@@ -709,7 +719,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
         
         {/* IF READING: Show PDF Viewer Area */}
         {activeBook && !zenMode && (
-          <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-lg)", border: "1px solid var(--color-border)", display: "flex", flexDirection: "column", overflow: "hidden", minHeight: "75vh" }}>
+          <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-lg)", border: "1px solid var(--color-border)", display: "flex", flexDirection: "column", overflow: "hidden", height: "82vh", minHeight: "600px" }}>
              <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid var(--color-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   <h3 style={{ fontSize: "1.1rem", fontWeight: 700 }}>{activeBook.title}</h3>
