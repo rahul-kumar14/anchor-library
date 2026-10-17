@@ -208,64 +208,74 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   // Fetch real books and categories
   useEffect(() => {
     async function fetchBooks() {
-      // Fetch categories
       const { data: catData } = await supabase.from('categories').select('*')
       
       const { data, error } = await supabase
         .from('books')
         .select(`*, authors(name)`)
-        .limit(30)
+        .limit(50)
         
       if (data) {
         let filtered: any[] = [];
         
-        if (catData) {
-          let keywords: string[] = [];
+        // Target room mappings
+        const keywordsMap: Record<string, string[]> = {
+          "reading": ["fiction", "literature", "novel", "story", "poetry", "classic", "philosophy", "biography"],
+          "english-lit": ["english", "english-literature", "classic", "fiction"],
+          "coding": ["programming", "tech", "coding", "computer", "dsa", "javascript", "git"],
+          "upsc": ["history", "polity", "upsc", "geography", "civil"],
+          "language": ["language", "grammar"],
+          "gate": ["science", "engineering", "math"],
+          "pomodoro": ["productivity", "habit", "focus", "self-help"],
+        };
+
+        const targetKeywords = keywordsMap[roomId] || [];
+
+        filtered = data.filter((b: any) => {
+          const assignedRoom = b.description_hindi || b.target_room || "";
+
+          // 1. If book has a specifically assigned room, strictly match that room!
+          if (assignedRoom) {
+            return assignedRoom === roomId;
+          }
+
+          // 2. If no room explicitly assigned:
+          if (roomId === "silent" || roomId === "night-owl") {
+            return true;
+          }
+
+          // For Hindi Literature room: match Hindi language books by default
           if (roomId === "reading") {
-            // Hindi Literature room gets Hindi literature books
-            keywords = ["fiction", "literature", "novel", "story", "poetry", "classic", "philosophy", "biography"];
-          } else if (roomId === "english-lit") {
-            keywords = ["english", "english-literature"];
-          } else if (roomId === "coding") {
-            keywords = ["programming", "tech", "coding", "computer", "dsa"];
-          } else if (roomId === "upsc") {
-            keywords = ["history", "polity", "upsc", "geography", "civil"];
-          } else if (roomId === "language") {
-            keywords = ["language", "grammar"];
-          } else if (roomId === "gate") {
-            keywords = ["science", "engineering", "math"];
-          } else if (roomId === "pomodoro") {
-            keywords = ["productivity", "habit", "focus", "self-help"];
-          } else if (roomId === "silent" || roomId === "night-owl") {
-            // General rooms show all available books
-            filtered = data;
+            return (b.language && b.language.toLowerCase() === "hindi") ||
+              targetKeywords.some(k => (b.genre && b.genre.toLowerCase().includes(k)));
           }
-          
-          if (keywords.length > 0) {
-            const matchedCategoryIds = catData
-              .filter(c => keywords.some(k => (c.slug && c.slug.toLowerCase().includes(k)) || (c.name && c.name.toLowerCase().includes(k))))
-              .map(c => c.id);
-              
-            filtered = data.filter(b => {
-              // For English Literature room, strictly require English language or English keywords
-              if (roomId === "english-lit") {
-                return (b.language && b.language.toLowerCase() === "english") ||
-                  matchedCategoryIds.includes(b.category_id) ||
-                  keywords.some(k => (b.genre && b.genre.toLowerCase().includes(k)));
-              }
 
-              // For Hindi Literature room, match Hindi literature categories or Hindi language
-              if (roomId === "reading") {
-                return matchedCategoryIds.includes(b.category_id) ||
-                  keywords.some(k => (b.genre && b.genre.toLowerCase().includes(k))) ||
-                  (b.language && b.language.toLowerCase() === "hindi");
-              }
+          // For English Literature room: NEVER include coding/tech books
+          if (roomId === "english-lit") {
+            const isTech = ["coding", "programming", "tech", "computer", "dsa", "javascript", "git"].some(k =>
+              (b.genre && b.genre.toLowerCase().includes(k)) ||
+              (b.title && b.title.toLowerCase().includes(k))
+            );
+            if (isTech) return false;
 
-              return matchedCategoryIds.includes(b.category_id) || 
-                keywords.some(k => (b.title && b.title.toLowerCase().includes(k)) || (b.genre && b.genre.toLowerCase().includes(k)));
-            });
+            return (b.language && b.language.toLowerCase() === "english" && !isTech) ||
+              targetKeywords.some(k => (b.genre && b.genre.toLowerCase().includes(k)));
           }
-        }
+
+          // For Coding room
+          if (roomId === "coding") {
+            return ["coding", "programming", "tech", "computer", "dsa", "javascript", "git"].some(k =>
+              (b.genre && b.genre.toLowerCase().includes(k)) ||
+              (b.title && b.title.toLowerCase().includes(k))
+            );
+          }
+
+          // Default fallback matching by genre keywords
+          return targetKeywords.some(k => 
+            (b.genre && b.genre.toLowerCase().includes(k)) ||
+            (b.title && b.title.toLowerCase().includes(k))
+          );
+        });
         
         setRealBooks(filtered);
       } else {
