@@ -213,7 +213,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
       const { data, error } = await supabase
         .from('books')
         .select(`*, authors(name)`)
-        .limit(50)
+        .limit(500)
         
       if (data) {
         let filtered: any[] = [];

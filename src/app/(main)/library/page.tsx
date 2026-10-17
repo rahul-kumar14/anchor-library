@@ -20,7 +20,7 @@ export default async function LibraryPage({
     .from("books")
     .select("*, authors(name), ratings(rating)")
     .order("created_at", { ascending: false })
-    .limit(60)
+    .limit(200)
 
   if (search) {
     query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%,author.ilike.%${search}%`)
@@ -33,7 +33,7 @@ export default async function LibraryPage({
 
   if (error) {
     // Fallback if relations not set
-    const { data: rawBooks } = await supabase.from("books").select("*").order("created_at", { ascending: false }).limit(60)
+    const { data: rawBooks } = await supabase.from("books").select("*").order("created_at", { ascending: false }).limit(200)
     if (rawBooks) {
       books = rawBooks
       error = null
