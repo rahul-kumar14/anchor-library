@@ -299,6 +299,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
 
     setSelectedText("")
     setNoteInput("")
+    if (activeBook) window.scrollTo({ top: 0, behavior: "instant" })
   }, [activeBook])
 
   // Auto measure PDF container width to fit 100% of the box
@@ -524,7 +525,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
         position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
         zIndex: 9999, background: "#0a0a0a", overflowY: "auto", padding: "2rem"
       } : { 
-        marginTop: "80px",
+        marginTop: 0,
         maxWidth: activeBook ? "98%" : "1400px",
         width: "100%",
         padding: activeBook ? "0.75rem 1.25rem" : undefined,
