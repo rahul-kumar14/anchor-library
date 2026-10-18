@@ -352,17 +352,16 @@ export default function ReaderPage() {
               <Document
                 file={(() => {
                   if (!book.pdf_url) return null;
+                  let targetUrl = book.pdf_url;
                   if (book.pdf_url.includes("drive.google.com")) {
                     const m = book.pdf_url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-                    if (m && m[1]) return `/api/pdf-proxy?id=${m[1]}`;
-                  }
-                  if (book.pdf_url.startsWith("http://") || book.pdf_url.startsWith("https://")) {
-                    // If external, route through proxy to prevent CORS blocking
+                    if (m && m[1]) targetUrl = `/api/pdf-proxy?id=${m[1]}`;
+                  } else if (book.pdf_url.startsWith("http://") || book.pdf_url.startsWith("https://")) {
                     if (typeof window !== "undefined" && !book.pdf_url.startsWith(window.location.origin)) {
-                      return `/api/pdf-proxy?url=${encodeURIComponent(book.pdf_url)}`;
+                      targetUrl = `/api/pdf-proxy?url=${encodeURIComponent(book.pdf_url)}`;
                     }
                   }
-                  return book.pdf_url;
+                  return { url: targetUrl, withCredentials: false };
                 })()}
                 onLoadSuccess={onDocumentLoadSuccess}
                 onLoadError={(err) => {
