@@ -42,12 +42,12 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   const [activeBook, setActiveBook] = useState<any | null>(null)
   const [pdfLoadFailed, setPdfLoadFailed] = useState(false)
 
-  // Client-only setup for pdfjs worker with unpkg fallback
+  // Client-only setup for pdfjs worker
   useEffect(() => {
-    if (typeof window !== "undefined" && !pdfjs.GlobalWorkerOptions.workerSrc) {
-      pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
+    if (typeof window !== "undefined") {
+      pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs`;
     }
-  }, [])
+  }, []);
 
   // Room Conversation ID mapping
   const ROOM_CONV_IDS: Record<string, string> = {
@@ -1421,7 +1421,11 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                           <button 
                             className="btn btn-primary btn-sm" 
                             style={{ marginTop: "0.5rem", width: "100%", justifyContent: "center" }}
-                            onClick={() => setActiveBook(activeBook?.id === b.id ? null : b)}
+                            onClick={() => {
+                              setPdfLoadFailed(false);
+                              setPageNumber(1);
+                              setActiveBook(activeBook?.id === b.id ? null : b);
+                            }}
                           >
                             {activeBook?.id === b.id ? "Close" : "Read Now"}
                           </button>
