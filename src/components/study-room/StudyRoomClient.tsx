@@ -7,19 +7,12 @@ import dynamic from "next/dynamic"
 import { useReadingProgress } from "@/components/pdf/useReadingProgress"
 import { useBookAnnotations } from "@/components/pdf/useBookAnnotations"
 import PageJump from "@/components/pdf/PageJump"
+import { advanceFocusTimer } from "@/lib/focus-timer"
 import UserProfileModal from "./UserProfileModal"
 import { useStudyRoomSession } from "@/context/StudyRoomContext"
 import { useRouter } from "next/navigation"
 
 const PdfCanvas = dynamic(() => import("@/components/pdf/PdfCanvas"), { ssr: false })
-
-interface UserPresence {
-  id: string
-  username: string
-  status: string
-  readingBook?: string
-  joined_at: string
-}
 
 const AMBIENT_SOUNDS = [
   { id: "none", name: "Mute", icon: "🔇" },
@@ -28,21 +21,16 @@ const AMBIENT_SOUNDS = [
   { id: "whitenoise", name: "Noise", icon: "📻", url: "https://actions.google.com/sounds/v1/ambiences/white_noise.ogg" },
 ]
 
-// Dummy fallback removed - books load dynamically from Supabase
-const ROOM_BOOKS: Record<string, { id: string; title: string; author: string; cover: string }[]> = {}
-
 export default function StudyRoomClient({ room, roomId }: { room: any; roomId: string }) {
   const router = useRouter()
-  const { activeSession, joinSession, leaveSession, updateSessionStatus } = useStudyRoomSession()
+  const { activeSession, members: activeUsers, joinSession, leaveSession, updateSessionStatus } = useStudyRoomSession()
   const supabase = createClient()
   const [user, setUser] = useState<any>(null)
-  const [channel, setChannel] = useState<any>(null)
-  
-  const [activeUsers, setActiveUsers] = useState<Record<string, UserPresence>>({})
   const [zenMode, setZenMode] = useState(false)
   const [activeTab, setActiveTab] = useState<"chat" | "library">("library") 
   const [realBooks, setRealBooks] = useState<any[]>([])
   const [booksLoading, setBooksLoading] = useState(true)
+  const [generalBookSuggestions, setGeneralBookSuggestions] = useState(false)
   const [activeBook, setActiveBook] = useState<any | null>(null)
   // Room Conversation ID mapping
   const ROOM_CONV_IDS: Record<string, string> = {
@@ -64,6 +52,8 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   const [activeDirectChat, setActiveDirectChat] = useState<{ conversationId: string; partner: any } | null>(null)
   const [chatMode, setChatMode] = useState<"room" | "direct">("room")
   const currentConvId = chatMode === "direct" && activeDirectChat ? activeDirectChat.conversationId : roomConvId
+  const currentConvIdRef = useRef(currentConvId)
+  currentConvIdRef.current = currentConvId
 
   // DB-backed chat messages state
   const [dbMessages, setDbMessages] = useState<any[]>([])
@@ -83,7 +73,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
     if (!user) return
     const checkActivity = async () => {
       try {
-        const res = await fetch(`/api/chat/conversations?user_id=${user.id}`)
+        const res = await fetch("/api/chat/conversations")
         if (res.ok) {
           const data = await res.json()
           setIncomingChatRequests(data.incomingRequests || [])
@@ -124,11 +114,10 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
     if (!convId) return
     try {
       if (!silent) setLoadingMessages(true)
-      const uId = user?.id || ""
-      const res = await fetch(`/api/chat/messages?conversation_id=${convId}&user_id=${uId}`)
+      const res = await fetch(`/api/chat/messages?conversation_id=${convId}`)
       if (res.ok) {
         const data = await res.json()
-        setDbMessages(data.messages || [])
+        if (convId === currentConvIdRef.current) setDbMessages(data.messages || [])
       }
     } catch (err) {
       console.error("Error loading chat messages:", err)
@@ -138,6 +127,8 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   }
 
   useEffect(() => {
+    setDbMessages([])
+    setNewMessage("")
     loadMessages(currentConvId)
     // 3s interval poll fallback so messages never disappear and stay updated
     const timer = setInterval(() => loadMessages(currentConvId, true), 3000)
@@ -171,26 +162,25 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   const [isEditingGoal, setIsEditingGoal] = useState(false)
 
   const [isPomodoro, setIsPomodoro] = useState(roomId === "pomodoro")
-  const [pomoTimeLeft, setPomoTimeLeft] = useState(25 * 60)
-  const [pomoMode, setPomoMode] = useState<"work" | "break">("work")
+  const [focusMinutes, setFocusMinutes] = useState(25)
+  const [pomoClock, setPomoClock] = useState({ mode: "work" as "work" | "break", remaining: 25 * 60 })
+  const pomoTimeLeft = pomoClock.remaining
+  const pomoMode = pomoClock.mode
+  const setPomoTimeLeft = (remaining: number) => setPomoClock({ mode: "work", remaining })
   const [sessionSeconds, setSessionSeconds] = useState(0)
   const [isTimerRunning, setIsTimerRunning] = useState(true)
 
   const [currentSound, setCurrentSound] = useState("none")
-  const [audioElem, setAudioElem] = useState<HTMLAudioElement | null>(null)
-
-  const [chatMessages, setChatMessages] = useState<{ user: string; text: string; time: string }[]>([])
+  const audioRef = useRef<HTMLAudioElement | null>(null)
   const [newMessage, setNewMessage] = useState("")
 
   // Fetch real books and categories
   useEffect(() => {
     async function fetchBooks() {
       setBooksLoading(true)
-      const { data: catData } = await supabase.from('categories').select('*')
-      
       const { data, error } = await supabase
         .from('books')
-        .select(`id,title,author,cover_url,description_hindi,language,genre,authors(name)`)
+        .select(`id,title,author,cover_url,cover_image_url,description_hindi,language,genre`)
         .limit(500)
         
       if (data) {
@@ -210,7 +200,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
         const targetKeywords = keywordsMap[roomId] || [];
 
         filtered = data.filter((b: any) => {
-          const assignedRoom = b.description_hindi || b.target_room || "";
+          const assignedRoom = Object.keys(ROOM_CONV_IDS).includes(b.description_hindi) ? b.description_hindi : "";
 
           // 1. If book has a specifically assigned room, strictly match that room!
           if (assignedRoom) {
@@ -255,7 +245,10 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
           );
         });
         
-        setRealBooks(filtered);
+        // An unpopulated subject shelf should not block reading in the room.
+        // These are clearly labelled general suggestions, not assigned books.
+        setGeneralBookSuggestions(filtered.length === 0 && data.length > 0)
+        setRealBooks((filtered.length ? filtered : data.slice(0, 12)).map(book => ({ ...book, cover_url: book.cover_url || book.cover_image_url })));
       } else {
         setRealBooks([]);
       }
@@ -266,7 +259,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
 
   const recommendedBooks = realBooks;
 
-  // Register active study room session globally so presence continues across pages
+  // A session belongs only to the room page. The provider owns its one channel.
   useEffect(() => {
     joinSession({
       roomId,
@@ -278,53 +271,22 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
     })
   }, [roomId, room.name, room.icon])
 
-  // Fetch user and connect to Presence
+  // Database events are checked through the authenticated API. Unverified public
+  // broadcasts must never inject private messages or impersonate another sender.
   useEffect(() => {
     let isSubscribed = true
-    const ch = supabase.channel(`room:${roomId}`, {
-      config: { presence: { key: "" } },
-    })
-
-    // MUST register callbacks BEFORE subscribe()
-    ch.on("presence", { event: "sync" }, () => {
-      const state = ch.presenceState()
-      const users: Record<string, UserPresence> = {}
-      for (const key in state) {
-        // @ts-ignore
-        for (const presence of state[key]) {
-          const member = presence as unknown as UserPresence
-          if (member.id) users[member.id] = member
-        }
-      }
-      setActiveUsers(users)
-    })
-
-    ch.on("broadcast", { event: "chat" }, (payload) => {
-      setChatMessages((prev) => [...prev, payload.payload])
-    })
-
-    ch.on("broadcast", { event: "chat_msg" }, (payload: any) => {
-      const msg = payload.payload
-      if (msg && msg.conversation_id === currentConvId) {
-        setDbMessages((prev) => {
-          if (prev.some((m) => m.id === msg.id)) return prev
-          return [...prev, msg]
-        })
-      }
-    })
-
-    // Now subscribe
-    ch.subscribe()
+    const ch = supabase.channel(`room-messages:${roomId}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${roomConvId}` }, () => {
+        if (isSubscribed && currentConvIdRef.current === roomConvId) loadMessages(roomConvId, true)
+      }).subscribe()
     supabase.auth.getUser().then(({ data: { user: currentUser } }) => {
       if (isSubscribed) setUser(currentUser)
     })
 
-    setChannel(ch)
-
     return () => {
       isSubscribed = false
-      if (audioElem) audioElem.pause()
-      ch.unsubscribe()
+      audioRef.current?.pause()
+      audioRef.current = null
       supabase.removeChannel(ch)
     }
   }, [roomId])
@@ -429,26 +391,30 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
     }
   }
 
-  // Timer ticker
+  // Measure actual elapsed time so throttled background tabs do not lose time.
   useEffect(() => {
-    let timer: any
-    if (isTimerRunning) {
-      timer = setInterval(() => {
-        setSessionSeconds((s) => s + 1)
-        if (isPomodoro) {
-          setPomoTimeLeft((prev) => {
-            if (prev <= 1) {
-              const nextMode = pomoMode === "work" ? "break" : "work"
-              setPomoMode(nextMode)
-              return nextMode === "work" ? 25 * 60 : 5 * 60
-            }
-            return prev - 1
-          })
-        }
-      }, 1000)
+    const params = new URLSearchParams(window.location.search)
+    const plannedGoal = params.get("goal")?.trim().slice(0, 120)
+    const plannedMinutes = Number(params.get("minutes"))
+    if (plannedGoal) setGoal(plannedGoal)
+    if ([15, 25, 50].includes(plannedMinutes)) {
+      setFocusMinutes(plannedMinutes)
+      setPomoClock({ mode: "work", remaining: plannedMinutes * 60 })
+      setIsPomodoro(true)
     }
+  }, [roomId])
+  useEffect(() => {
+    if (!isTimerRunning) return
+    let lastTick = Date.now()
+    const timer = setInterval(() => {
+      const seconds = Math.floor((Date.now() - lastTick) / 1000)
+      if (!seconds) return
+      lastTick += seconds * 1000
+      setSessionSeconds(previous => previous + seconds)
+      if (isPomodoro) setPomoClock(previous => advanceFocusTimer(previous, seconds, focusMinutes))
+    }, 1000)
     return () => clearInterval(timer)
-  }, [isTimerRunning, isPomodoro, pomoMode])
+  }, [isTimerRunning, isPomodoro, focusMinutes])
 
   const formatTime = (secs: number) => {
     const hrs = Math.floor(secs / 3600)
@@ -460,7 +426,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   }
 
   const handleSoundChange = (soundId: string) => {
-    if (audioElem) audioElem.pause()
+    audioRef.current?.pause()
     setCurrentSound(soundId)
     const selected = AMBIENT_SOUNDS.find((s) => s.id === soundId)
     if (selected && selected.url) {
@@ -468,9 +434,9 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
       audio.loop = true
       audio.volume = 0.5
       audio.play().catch(() => {})
-      setAudioElem(audio)
+      audioRef.current = audio
     } else {
-      setAudioElem(null)
+      audioRef.current = null
     }
   }
 
@@ -515,20 +481,15 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
         const savedMsg = data.message
         setDbMessages((prev) => prev.map((m) => (m.id === tempId ? savedMsg : m)))
 
-        if (channel) {
-          channel.send({
-            type: "broadcast",
-            event: "chat_msg",
-            payload: savedMsg,
-          })
-        }
       } else {
         setDbMessages((prev) => prev.filter((m) => m.id !== tempId))
+        if (currentConvIdRef.current === currentConvId) setNewMessage(previous => previous || content)
         alert("Failed to send message.")
       }
     } catch (err) {
       console.error(err)
       setDbMessages((prev) => prev.filter((m) => m.id !== tempId))
+      if (currentConvIdRef.current === currentConvId) setNewMessage(previous => previous || content)
     } finally {
       setSendingMsg(false)
     }
@@ -591,7 +552,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
               </span>
               <div>
                 <h1 className={styles.roomHeading}>{room.name}</h1>
-                <p className={styles.roomSub}>{room.desc}</p>
+                <p className={styles.roomSub}>{roomId === "pomodoro" ? `${focusMinutes} minutes deep focus followed by a 5 minute break.` : room.desc}</p>
               </div>
             </div>
           </div>
@@ -784,7 +745,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                 {isTimerRunning ? "⏸️ Pause" : "▶️ Resume"}
               </button>
               {!zenMode && !activeBook && (
-                <button className="btn btn-ghost btn-sm" onClick={() => { setSessionSeconds(0); setPomoTimeLeft(25 * 60); }}>🔄 Reset</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => { setSessionSeconds(0); setPomoTimeLeft(focusMinutes * 60); }}>🔄 Reset</button>
               )}
             </div>
           </div>
@@ -937,7 +898,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                           <span>New Message from @{unreadMsgBanner.partner?.username || unreadMsgBanner.senderName}</span>
                         </div>
                         <div style={{ fontSize: "0.72rem", opacity: 0.95, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
-                          "{unreadMsgBanner.text}"
+                          A new private message is waiting in your inbox.
                         </div>
                       </div>
                       <div style={{ display: "flex", gap: "4px" }}>
@@ -1070,7 +1031,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                         })
                         .map((conv) => {
                           const isCurrent = chatMode === "direct" && activeDirectChat?.conversationId === conv.id
-                          const hasUnread = conv.last_message && conv.last_message.sender_id !== user?.id
+                          const hasUnread = conv.has_unread
                           return (
                             <button
                               key={conv.id}
@@ -1132,7 +1093,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                   }}>
                     <span>⏱️</span>
                     <span>
-                      {chatMode === "direct" ? `Private 1-on-1 with @${activeDirectChat?.partner?.username}` : `Room Chat (${room.name})`} • Auto-deletes from DB after 7 days
+                      {chatMode === "direct" ? `Private 1-on-1 with @${activeDirectChat?.partner?.username}` : `Room Chat (${room.name})`} • 7-day chat history
                     </span>
                   </div>
 
@@ -1154,7 +1115,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                         const isMe = m.sender_id === user?.id || (m.profiles?.username && m.profiles.username === myUsername)
                         const senderName = isMe ? "You" : (m.profiles?.full_name || m.profiles?.username || "Study Partner")
                         const timeStr = m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""
-                        const isDelivered = activeUserList.length > 1
+
 
                         return (
                           <div
@@ -1204,15 +1165,15 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                                 {isMe && (
                                   <span
                                     style={{
-                                      color: isDelivered ? "#6ee7b7" : "rgba(255,255,255,0.7)",
+                                      color: "rgba(255,255,255,0.7)",
                                       fontWeight: "bold",
                                       fontSize: "0.72rem",
                                       letterSpacing: "-1.5px",
                                       marginLeft: "1px",
                                     }}
-                                    title={isDelivered ? "Delivered & Seen" : "Sent"}
+                                    title="Sent"
                                   >
-                                    {isDelivered ? "✓✓" : "✓"}
+                                    ✓
                                   </span>
                                 )}
                               </div>
@@ -1228,6 +1189,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                   <form onSubmit={handleSendMessage} className={styles.chatInputForm}>
                     <input
                       type="text"
+                      maxLength={4000}
                       className="input"
                       placeholder={chatMode === "direct" ? `Message @${activeDirectChat?.partner?.username}...` : "Post a message to room..."}
                       value={newMessage}
@@ -1246,7 +1208,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                 <h3 className={styles.boxTitle} style={{ fontSize: activeBook ? "0.9rem" : undefined }}>📚 Books</h3>
                 {!activeBook && (
                   <p style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", marginBottom: "1rem" }}>
-                    Read right here in the study room.
+                    {generalBookSuggestions ? "Suggestions from the library. Read any of these here." : "Read right here in the study room."}
                   </p>
                 )}
                 <div style={{ display: "flex", flexDirection: "column", gap: "1rem", overflowY: "auto", flex: 1, maxHeight: activeBook ? "50vh" : "600px", paddingRight: "4px" }}>

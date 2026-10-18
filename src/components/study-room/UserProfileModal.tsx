@@ -23,8 +23,7 @@ export default function UserProfileModal({
   const fetchProfile = async () => {
     try {
       setLoading(true)
-      const currentId = currentUser?.id || ""
-      const res = await fetch(`/api/user/profile/${targetUserId}?current_user_id=${currentId}`)
+      const res = await fetch(`/api/user/profile/${targetUserId}`)
       const json = await res.json()
       if (res.ok) {
         setData(json)
@@ -211,7 +210,7 @@ export default function UserProfileModal({
               )}
 
               {/* Real Reading Stats Grid */}
-              <div className={styles.statsGrid}>
+              {!data.reading_history_private && <div className={styles.statsGrid}>
                 <div className={styles.statCard}>
                   <div className={styles.statVal}>🔥 {data.stats?.reading_streak ?? 0}d</div>
                   <div className={styles.statLabel}>Streak</div>
@@ -226,14 +225,15 @@ export default function UserProfileModal({
                 </div>
               </div>
 
+              }
               {/* Reading Shelf from Real Database */}
               <div className={styles.sectionHeading}>
-                <span>📚</span> Reading History ({data.books?.length ?? 0})
+                <span>📚</span> {data.reading_history_private ? "Private reading shelf" : "Reading History (" + (data.books?.length ?? 0) + ")"}
               </div>
 
               {(!data.books || data.books.length === 0) ? (
                 <div style={{ fontSize: "0.82rem", color: "var(--color-text-secondary)", padding: "0.75rem 0", textAlign: "center" }}>
-                  No active books in library shelf yet.
+                  {data.reading_history_private ? "Reading history and book progress are visible only to their owner." : "No active books in library shelf yet."}
                 </div>
               ) : (
                 <div className={styles.bookList}>

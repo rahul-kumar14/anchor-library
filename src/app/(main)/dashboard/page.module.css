@@ -1,4 +1,4 @@
-.page { min-height: calc(100vh - var(--navbar-height)); padding: calc(var(--navbar-height) + var(--space-6)) 0 var(--space-20); }
+.page { min-height: calc(100vh - var(--navbar-height)); padding: var(--space-6) 0 var(--space-20); }
 
 .welcomeBar {
   display: flex; align-items: center; justify-content: space-between;

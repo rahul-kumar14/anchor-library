@@ -18,6 +18,7 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
   const [loading, setLoading] = useState(true)
   const [msgLoading, setMsgLoading] = useState(false)
   const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState("")
   const msgEndRef = useRef<HTMLDivElement>(null)
   const msgContainerRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
@@ -36,11 +37,12 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
         setConversations(convList)
         setRequests(data.incomingRequests || [])
         
-        // Auto select first conversation ONLY on first load if none has been selected yet
-        if (!activeConvIdRef.current && convList.length > 0) {
-          activeConvIdRef.current = convList[0].id
-          setActiveConvId(convList[0].id)
-          setActivePartner(convList[0].partner)
+        const requested = new URLSearchParams(window.location.search).get("conversation")
+        const selected = requested && convList.find((conversation: any) => conversation.id === requested)
+        if (!activeConvIdRef.current && selected) {
+          activeConvIdRef.current = selected.id
+          setActiveConvId(selected.id)
+          setActivePartner(selected.partner)
         }
       }
     } catch (err) {
@@ -62,8 +64,10 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
       const res = await fetch(`/api/chat/messages?conversation_id=${convId}`)
       if (res.ok) {
         const data = await res.json()
-        setMessages(data.messages || [])
-        if (data.partner) setActivePartner(data.partner)
+        if (activeConvIdRef.current === convId) {
+          setMessages(data.messages || [])
+          if (data.partner) setActivePartner(data.partner)
+        }
       }
     } catch (err) {
       console.error(err)
@@ -73,6 +77,8 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
   }
 
   useEffect(() => {
+    setMessages([])
+    setSendError("")
     if (activeConvId) {
       fetchMessages(activeConvId)
       
@@ -87,6 +93,7 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
             filter: `conversation_id=eq.${activeConvId}`,
           },
           (payload) => {
+            if (activeConvIdRef.current !== activeConvId) return
             setMessages((prev) => {
               if (prev.some((m) => m.id === payload.new.id)) return prev
               return [...prev, payload.new]
@@ -148,6 +155,7 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
     const content = inputText.trim()
     setInputText("")
     setSending(true)
+    setSendError("")
 
     const tempId = `temp_${Date.now()}`
     const optMsg = {
@@ -167,12 +175,12 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
       })
       if (res.ok) {
         const data = await res.json()
-        setMessages((prev) => prev.map((m) => (m.id === tempId ? data.message : m)))
+        if (activeConvIdRef.current === activeConvId) setMessages((prev) => prev.map((m) => (m.id === tempId ? data.message : m)))
       } else {
-        setMessages((prev) => prev.filter((m) => m.id !== tempId))
+        if (activeConvIdRef.current === activeConvId) { setMessages(previous => previous.filter(message => message.id !== tempId)); setInputText(previous => previous || content); setSendError("Message could not be sent. Your draft is ready to retry.") }
       }
     } catch {
-      setMessages((prev) => prev.filter((m) => m.id !== tempId))
+      if (activeConvIdRef.current === activeConvId) { setMessages(previous => previous.filter(message => message.id !== tempId)); setInputText(previous => previous || content); setSendError("Message could not be sent. Please retry.") }
     } finally {
       setSending(false)
     }
@@ -181,7 +189,7 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
   return (
     <div className={styles.page}>
       <div className="container">
-        <div className={styles.layout}>
+        <div className={`${styles.layout} ${activeConvId ? styles.hasConversation : ""}`}>
           {/* Sidebar */}
           <div className={styles.sidebar}>
             <div className={styles.sidebarHeader}>
@@ -250,7 +258,7 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
                         <div className="avatar-placeholder" style={{ width: 40, height: 40, fontSize: 14 }}>
                           {(partner?.username?.[0] || "U").toUpperCase()}
                         </div>
-                        <div className="online-dot" />
+
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div className={styles.convName}>{partner?.full_name || partner?.username || "Study Partner"}</div>
@@ -272,12 +280,13 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
                 <div className={styles.chatEmptyIcon}>💬</div>
                 <h3>Select a conversation</h3>
                 <p>Start a direct study conversation with your peer.</p>
-                <span className="badge badge-secondary">🔒 1-Week Auto-Delete Enabled</span>
+                <span className="badge badge-secondary">🔒 Chat starts after an accepted request</span>
               </div>
             ) : (
               <>
                 {/* Active Header */}
                 <div className={styles.activeChatHeader}>
+                  <button className={styles.mobileBack} onClick={() => { activeConvIdRef.current = null; setActiveConvId(null); setActivePartner(null) }}>← Inbox</button>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                     <div className="avatar-placeholder" style={{ width: 36, height: 36, fontSize: 13 }}>
                       {(activePartner?.username?.[0] || "U").toUpperCase()}
@@ -297,9 +306,9 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
                 <div className={styles.noticeBanner}>
                   <span style={{ fontSize: "1.1rem" }}>⏱️</span>
                   <div>
-                    <strong>1-Week Auto-Delete Policy:</strong> All messages in this conversation are stored securely in database and automatically purged after 7 days.
+                    <strong>Private conversation:</strong> Only participants can access this chat. The app shows the last 7 days of messages.
                     <div style={{ fontSize: "0.72rem", opacity: 0.85, marginTop: "2px" }}>
-                      💡 नोट: यह चैट 7 दिनों के बाद डेटाबेस से अपने आप हट जाएगी।
+                      आपकी बातचीत केवल इस चैट के सदस्यों को दिखाई देती है।
                     </div>
                   </div>
                 </div>
@@ -333,10 +342,12 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
                   <div ref={msgEndRef} />
                 </div>
 
+                {sendError && <p role="alert" style={{ padding: "0 1rem", color: "#b45309", fontSize: "0.8rem" }}>{sendError}</p>}
                 {/* Input Bar */}
                 <form onSubmit={handleSendMessage} className={styles.inputBar}>
                   <input
                     type="text"
+                    maxLength={4000}
                     className="input"
                     placeholder={`Write a message to @${activePartner?.username || "partner"}...`}
                     value={inputText}

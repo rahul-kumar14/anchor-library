@@ -12,20 +12,21 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("*")
+    .select("id,username,full_name,avatar_url,bio,is_admin,created_at")
     .eq("id", user.id)
     .single()
 
-  const { data: readingProgress } = await supabase
+  const { data: readingProgress, count: readingCount } = await supabase
     .from("reading_progress")
-    .select("*, books(title, cover_url)")
+    .select("*, books(title, cover_url)", { count: "exact" })
+    .eq("is_completed", false)
     .eq("user_id", user.id)
     .order("last_read_at", { ascending: false })
     .limit(5)
 
-  const { data: favorites } = await supabase
+  const { data: favorites, count: favoriteCount } = await supabase
     .from("favorites")
-    .select("*, books(id, title, cover_url, authors(name))")
+    .select("*, books(id, title, cover_url, authors(name))", { count: "exact" })
     .eq("user_id", user.id)
     .limit(6)
 
@@ -39,7 +40,7 @@ export default async function DashboardPage() {
     .from("notifications")
     .select("*")
     .eq("user_id", user.id)
-    .eq("read", false)
+    .eq("is_read", false)
     .limit(5)
 
   const displayName = profile?.full_name || profile?.username || user.email?.split("@")[0]
@@ -68,8 +69,8 @@ export default async function DashboardPage() {
         {/* Quick Stats */}
         <div className={styles.statsGrid}>
           {[
-            { icon: "📚", label: "Books Reading", value: readingProgress?.length ?? 0, color: "var(--color-primary)" },
-            { icon: "❤️", label: "Favorites", value: favorites?.length ?? 0, color: "var(--color-danger)" },
+            { icon: "📚", label: "Books Reading", value: readingCount ?? 0, color: "var(--color-primary)" },
+            { icon: "❤️", label: "Favorites", value: favoriteCount ?? 0, color: "var(--color-danger)" },
             { icon: "🏆", label: "Achievements", value: achievements?.length ?? 0, color: "var(--color-accent)" },
             { icon: "🔔", label: "Notifications", value: notifications?.length ?? 0, color: "var(--color-secondary)" },
           ].map((s, i) => (
@@ -91,7 +92,7 @@ export default async function DashboardPage() {
             {readingProgress && readingProgress.length > 0 ? (
               <div className={styles.readingList}>
                 {readingProgress.map((item: any) => (
-                  <Link key={item.id} href={`/library/${item.book_id}`} className={`${styles.readingItem} card`}>
+                  <Link key={item.id} href={`/read/${item.book_id}`} className={`${styles.readingItem} card`}>
                     <div className={styles.readingCover}>
                       {item.books?.cover_url ? (
                         <img src={item.books.cover_url} alt={item.books?.title} />
@@ -135,7 +136,7 @@ export default async function DashboardPage() {
                   {achievements.map((a: any) => (
                     <div key={a.id} className={styles.achievementBadge} title={a.description}>
                       <span>{a.icon ?? "🏅"}</span>
-                      <span className={styles.achievementTitle}>{a.title}</span>
+                      <span className={styles.achievementTitle}>{a.title || a.type?.replace(/_/g, " ") || "Milestone"}</span>
                     </div>
                   ))}
                 </div>
@@ -156,8 +157,8 @@ export default async function DashboardPage() {
                 <div className={styles.notifList}>
                   {notifications.map((n: any) => (
                     <div key={n.id} className={styles.notifItem}>
-                      <div className={styles.notifTitle}>{n.title}</div>
-                      <div className={styles.notifBody}>{n.body}</div>
+                      <div className={styles.notifTitle}>{n.payload?.title || "Study update"}</div>
+                      <div className={styles.notifBody}>{n.payload?.body || "Open your inbox for details."}</div>
                     </div>
                   ))}
                 </div>

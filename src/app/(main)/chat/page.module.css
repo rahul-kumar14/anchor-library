@@ -1,4 +1,4 @@
-.page { min-height: calc(100vh - var(--navbar-height)); padding: calc(var(--navbar-height) + var(--space-6)) 0; }
+.page { min-height: calc(100vh - var(--navbar-height)); padding: var(--space-6) 0; }
 .layout { display: grid; grid-template-columns: 320px 1fr; gap: var(--space-4); height: calc(100vh - var(--navbar-height) - var(--space-12)); }
 
 .sidebar {
@@ -112,7 +112,11 @@
   gap: 0.75rem;
 }
 
+.mobileBack { display: none; }
 @media (max-width: 768px) {
   .layout { grid-template-columns: 1fr; }
   .chatArea { display: none; }
+  .hasConversation .chatArea { display: flex; }
+  .hasConversation .sidebar { display: none; }
+  .mobileBack { display: inline-flex; padding: 6px; font-size: 12px; background: none; border: 0; color: var(--color-primary-dark); cursor: pointer; }
 }

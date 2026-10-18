@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test:pdf": "node --test tests/pdf-proxy.test.cjs"
+    "test:pdf": "node --test tests/pdf-proxy.test.cjs",
+    "test": "node --test tests/*.test.cjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.5",

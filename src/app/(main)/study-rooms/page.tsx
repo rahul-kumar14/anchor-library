@@ -3,6 +3,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import styles from "./page.module.css"
+import { uniqueStudyMembers } from "@/lib/study-presence"
 import { useStudyRoomSession } from "@/context/StudyRoomContext"
 
 const ROOM_TYPES = [
@@ -20,8 +21,9 @@ const ROOM_TYPES = [
 export default function StudyRoomsPage() {
   const supabase = createClient()
   const { activeSession } = useStudyRoomSession()
-  const [roomCounts, setRoomCounts] = useState<Record<string, number>>({})
-  const [totalOnline, setTotalOnline] = useState(0)
+  const [roomMembers, setRoomMembers] = useState<Record<string, string[]>>({})
+  const roomCounts = Object.fromEntries(Object.entries(roomMembers).map(([room, ids]) => [room, ids.length]))
+  const totalOnline = new Set(Object.values(roomMembers).flat()).size
 
   useEffect(() => {
     // Connect to all room channels to get presence counts
@@ -31,27 +33,20 @@ export default function StudyRoomsPage() {
       })
       
       channel.on("presence", { event: "sync" }, () => {
-        const state = channel.presenceState()
-        const count = Object.keys(state).length
-        
-        setRoomCounts(prev => {
-          // If current user has activeSession in this room, guarantee count is at least 1
-          const finalCount = activeSession?.roomId === room.id ? Math.max(1, count) : count
-          const newCounts = { ...prev, [room.id]: finalCount }
-          const total = Object.values(newCounts).reduce((acc, curr) => acc + curr, 0)
-          setTotalOnline(total)
-          return newCounts
-        })
+        const ids = uniqueStudyMembers(channel.presenceState())
+        setRoomMembers(previous => ({ ...previous, [room.id]: ids }))
       })
 
-      channel.subscribe()
+      channel.subscribe(status => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") setRoomMembers(previous => ({ ...previous, [room.id]: [] }))
+      })
       return channel
     })
 
     return () => {
-      channels.forEach(ch => ch.unsubscribe())
+      channels.forEach(ch => supabase.removeChannel(ch))
     }
-  }, [activeSession?.roomId])
+  }, [supabase])
 
   return (
     <div className={styles.page}>
@@ -74,13 +69,13 @@ export default function StudyRoomsPage() {
         <div className={styles.statsBar}>
           <div className={styles.statItem}>
             <div className={styles.liveDot} />
-            <span><strong style={{ color: "var(--color-secondary)" }}>{totalOnline}</strong> people studying right now</span>
+            <span><strong style={{ color: "var(--color-secondary)" }}>{totalOnline}</strong> {totalOnline === 1 ? "person" : "people"} studying right now</span>
           </div>
           <div className={styles.statItem}>
             <span>⏱️ <strong style={{ color: "var(--color-accent)" }}>Live</strong> sync enabled</span>
           </div>
           <div className={styles.statItem}>
-            <span>🔥 <strong style={{ color: "var(--color-danger)" }}>Focus</strong> mode active</span>
+            <span>🎧 Camera-free study rooms</span>
           </div>
         </div>
 
@@ -88,7 +83,7 @@ export default function StudyRoomsPage() {
         <div className={styles.roomsGrid}>
           {ROOM_TYPES.map((room) => {
             const isMyRoom = activeSession?.roomId === room.id
-            const count = isMyRoom ? Math.max(1, roomCounts[room.id] || 0) : (roomCounts[room.id] || 0)
+            const count = roomCounts[room.id] || 0
             
             return (
               <Link

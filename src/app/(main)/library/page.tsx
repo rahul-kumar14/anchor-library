@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import Link from "next/link"
 import styles from "./page.module.css"
 
-export const metadata = { title: "Library — Browse 1000+ Books | Anchor Library" }
+export const metadata = { title: "Browse Books" }
 
 export const dynamic = 'force-dynamic'
 
@@ -16,25 +16,27 @@ export default async function LibraryPage({
 
   const { data: categories } = await supabase.from("categories").select("*").order("name")
 
+  const term = (search || "").normalize("NFKC").replace(/[%,()"\\]/g, " ").replace(/\s+/g, " ").trim().slice(0, 120)
+  const applyFilters = (query: any) => {
+    if (term) query = query.or(`title.ilike.%${term}%,description.ilike.%${term}%,author.ilike.%${term}%`)
+    if (category) query = query.eq("category_id", /^[1-9]\d*$/.test(category) ? category : -1)
+    return query
+  }
+
   let query = supabase
     .from("books")
     .select("*, authors(name), ratings(rating)")
     .order("created_at", { ascending: false })
     .limit(200)
 
-  if (search) {
-    query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%,author.ilike.%${search}%`)
-  }
-  if (category) {
-    query = query.eq("category_id", category)
-  }
+  query = applyFilters(query)
 
   let { data: books, error } = await query
 
   if (error) {
     // Fallback if relations not set
-    const { data: rawBooks } = await supabase.from("books").select("*").order("created_at", { ascending: false }).limit(200)
-    if (rawBooks) {
+    const { data: rawBooks, error: fallbackError } = await applyFilters(supabase.from("books").select("id,title,author,description,cover_url,category_id,created_at").order("created_at", { ascending: false }).limit(200))
+    if (!fallbackError && rawBooks) {
       books = rawBooks
       error = null
     }
@@ -53,9 +55,11 @@ export default async function LibraryPage({
         </div>
 
         <form className={styles.filterBar} method="GET">
+          {category && <input type="hidden" name="category" value={category} />}
           <div className={styles.searchWrap}>
             <span className={styles.searchIcon}>🔍</span>
             <input
+              aria-label="Search books by title or author"
               name="search"
               type="text"
               className={`input ${styles.searchInput}`}
@@ -64,6 +68,8 @@ export default async function LibraryPage({
             />
           </div>
           <div className={styles.categoryScroll}>
+            <Link href="/favorites" className={styles.categoryChip}>♡ Saved books</Link>
+            <button type="submit" className="btn btn-primary btn-sm">Search</button>
             <Link
               href="/library"
               className={`${styles.categoryChip} ${!category ? styles.categoryActive : ""}`}
@@ -73,7 +79,7 @@ export default async function LibraryPage({
             {categories?.map((cat) => (
               <Link
                 key={cat.id}
-                href={`/library?${search ? `search=${search}&` : ""}category=${cat.id}`}
+                href={"/library?" + new URLSearchParams({ ...(search ? { search } : {}), category: String(cat.id) })}
                 className={`${styles.categoryChip} ${category === String(cat.id) ? styles.categoryActive : ""}`}
               >
                 {cat.name}

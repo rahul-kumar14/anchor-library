@@ -1,0 +1,15 @@
+.wrap { position: relative; }
+.trigger { width: 36px; height: 36px; border: 1px solid var(--color-border); border-radius: 50%; background: var(--color-surface); color: var(--color-primary-dark); cursor: pointer; position: relative; font-size: 23px; }
+.count { position: absolute; right: -4px; top: -4px; min-width: 18px; height: 18px; border-radius: 12px; padding: 1px 4px; background: #a94225; color: white; font: 600 10px/16px sans-serif; }
+.panel { position: absolute; top: 46px; right: 0; width: min(340px, calc(100vw - 24px)); border: 1px solid var(--color-border); border-radius: 16px; background: var(--color-surface); box-shadow: 0 12px 40px #32230e22; overflow: hidden; }
+.heading { padding: 16px 18px 6px; display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.heading span, .caption { color: var(--color-text-muted); font-size: 11px; }
+.caption { padding: 0 18px 12px; line-height: 1.6; }
+.panel ul { list-style: none; max-height: 300px; overflow-y: auto; margin: 0; padding: 0; }
+.panel li a { display: flex; flex-direction: column; gap: 4px; padding: 14px 18px; border-top: 1px solid var(--color-border); font-size: 13px; }
+.panel li a:hover { background: var(--color-surface-2); }
+.panel li span { font-size: 11px; color: var(--color-text-secondary); }
+.empty { padding: 22px 18px; background: var(--color-surface-2); font-size: 13px; }
+.empty p { margin-top: 8px; color: var(--color-text-secondary); line-height: 1.7; }
+.footer { display: block; padding: 14px 18px; border-top: 1px solid var(--color-border); font-size: 12px; font-weight: 600; color: var(--color-primary-dark); }
+@media (max-width: 600px) { .panel { position: fixed; top: calc(var(--navbar-height) + 8px); right: 12px; } }

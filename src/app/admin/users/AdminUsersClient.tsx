@@ -19,7 +19,9 @@ export default function AdminUsersClient({ initialUsers }: { initialUsers: any[]
 
   const handleDelete = async (userId: string) => {
     if (!confirm("Delete this user? This cannot be undone.")) return
-    const { error } = await supabase.from("profiles").delete().eq("id", userId)
+    const response = await fetch("/api/admin/users", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId }) })
+    const result = await response.json()
+    const error = response.ok ? null : { message: result.error }
     if (!error) {
       setUsers((prev) => prev.filter((u) => u.id !== userId))
       setStatusMsg({ type: "success", text: "User deleted successfully." })
@@ -30,10 +32,9 @@ export default function AdminUsersClient({ initialUsers }: { initialUsers: any[]
 
   const handleToggleAdmin = async (userId: string, currentIsAdmin: boolean) => {
     if (!confirm(`${currentIsAdmin ? "Remove" : "Grant"} admin access for this user?`)) return
-    const { error } = await supabase
-      .from("profiles")
-      .update({ is_admin: !currentIsAdmin })
-      .eq("id", userId)
+    const response = await fetch("/api/admin/users", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId, isAdmin: !currentIsAdmin }) })
+    const result = await response.json()
+    const error = response.ok ? null : { message: result.error }
     if (!error) {
       setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, is_admin: !currentIsAdmin } : u))
       setStatusMsg({ type: "success", text: `Admin access ${!currentIsAdmin ? "granted" : "revoked"}.` })

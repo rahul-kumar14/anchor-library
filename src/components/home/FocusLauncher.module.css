@@ -1,0 +1,19 @@
+.card { background: #fffef9; color: #292c24; border: 1px solid #d5d8c6; border-radius: 22px; padding: 30px; box-shadow: 14px 18px 0 #e4e6d8; text-align: left; position: relative; }
+.top { display: flex; gap: 10px; align-items: center; font-size: 9px; letter-spacing: 1.4px; font-weight: 600; color: #656a5c; }
+.mark { color: #52644a; font-size: 24px; }
+.tag { margin-left: auto; padding: 5px 8px; background: #edf0e6; border-radius: 20px; letter-spacing: 0; font-size: 10px; }
+.card h2 { font: 500 clamp(27px, 3vw, 39px)/1.2 var(--font-heading); margin: 27px 0; letter-spacing: -1px; }
+.card h2 em { color: #63714c; font-weight: 400; }
+.card label, .card legend { display: block; margin-bottom: 9px; color: #626658; font-size: 11px; }
+.card input { width: 100%; padding: 14px 12px; border-radius: 8px; border: 1px solid #d9dccc; background: white; color: #383c31; font: 12px var(--font-body); }
+.card input:focus { outline: 2px solid #8e9a70; outline-offset: 2px; }
+.card fieldset { border: 0; padding: 0; margin: 22px 0; }
+.durations { display: flex; gap: 9px; }
+.durations button { flex: 1; padding: 12px 4px; background: white; border: 1px solid #d9dccc; border-radius: 8px; color: #626658; font-size: 16px; cursor: pointer; }
+.durations button span { font-size: 10px; }
+.durations button[aria-pressed="true"] { background: #e9edde; border-color: #82966c; color: #35462d; }
+.start { width: 100%; border: none; padding: 15px; background: #394c35; color: #fffef9; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.start:hover { background: #263c22; }
+.card > p { color: #8b8f81; font-size: 10px; text-align: center; margin-top: 12px; }
+.bottom { border-top: 1px solid #e6e8dc; margin-top: 25px; padding-top: 16px; display: flex; justify-content: space-between; gap: 8px; font-size: 8px; color: #777d6d; }
+@media (max-width: 600px) { .card { padding: 24px; box-shadow: 7px 9px 0 #e4e6d8; } }

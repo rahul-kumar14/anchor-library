@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import styles from "./page.module.css"
+import FavoriteButton from "@/components/library/FavoriteButton"
 
 export default async function BookDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -14,6 +15,9 @@ export default async function BookDetailPage({ params }: { params: Promise<{ id:
     .single()
 
   if (!book) notFound()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: favorite } = user ? await supabase.from("favorites").select("id").eq("user_id", user.id).eq("book_id", book.id).maybeSingle() : { data: null }
 
   const avgRating = book.ratings?.length
     ? (book.ratings.reduce((s: number, r: any) => s + r.rating, 0) / book.ratings.length).toFixed(1)
@@ -38,7 +42,7 @@ export default async function BookDetailPage({ params }: { params: Promise<{ id:
               ) : (
                 <button className="btn btn-primary w-full" disabled>Coming Soon</button>
               )}
-              <button className="btn btn-secondary w-full">Add to Favorites</button>
+              <FavoriteButton bookId={book.id} initialSaved={!!favorite} />
             </div>
             <div className={styles.metaCard}>
               {avgRating && <div className={styles.metaRow}><span className={styles.metaLabel}>Rating</span><span>{avgRating}</span></div>}

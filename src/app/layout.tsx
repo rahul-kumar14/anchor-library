@@ -6,7 +6,7 @@ export const metadata: Metadata = {
     default: "Anchor Library — Your Global Virtual Library",
     template: "%s | Anchor Library",
   },
-  description: "A virtual library where you study with the world. Join study rooms, read 1000+ books, and stay consistent with a global community.",
+  description: "Read Hindi and English books, keep your notes, and focus with a little company in camera-free study rooms.",
   keywords: ["virtual library", "study rooms", "online books", "study together", "focus", "UPSC", "learning"],
   openGraph: {
     title: "Anchor Library",

@@ -86,7 +86,7 @@
   position: relative;
   cursor: pointer;
 }
-.avatarWrap:hover .avatarDropdown {
+.avatarWrap:hover .avatarDropdown, .avatarWrap:focus-within .avatarDropdown {
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
@@ -185,9 +185,16 @@
   background: var(--color-primary-glow);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1100px) {
   .navLinks { display: none; }
   .dashBtn { display: none; }
   .hamburger { display: flex; }
   .navRight { gap: var(--space-2); }
+}
+@media (max-width: 600px) {
+  .inner { padding: 0 16px; gap: 12px; }
+  .activeSession { display: none !important; }
+  .logoText { font-size: 1.05rem; }
+  .navRight { margin-left: auto; }
+  .hamburger { margin-left: 0; flex-shrink: 0; }
 }

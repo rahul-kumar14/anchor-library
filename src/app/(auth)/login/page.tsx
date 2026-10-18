@@ -1,8 +1,8 @@
 "use client"
 import { Suspense, useState } from "react"
 import Link from "next/link"
-import { useRouter, useSearchParams } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
+import { useSearchParams } from "next/navigation"
+import { safeAuthRedirect } from "@/lib/auth-redirect"
 import styles from "./page.module.css"
 
 // Separate inner component so useSearchParams is inside Suspense
@@ -11,66 +11,24 @@ function LoginForm() {
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-  const router = useRouter()
   const searchParams = useSearchParams()
   const message = searchParams.get("message")
-  const supabase = createClient()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError("")
 
-    let loginEmail = identifier.trim()
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier, password }),
+      })
+      const data = await response.json()
+      if (!response.ok) { setError(data.error || "Login failed."); setLoading(false); return }
+      window.location.href = safeAuthRedirect(searchParams.get("redirect"), data.isAdmin ? "/admin/books" : "/dashboard")
+    } catch { setError("Unable to connect. Please retry."); setLoading(false) }
 
-    // If no '@' is present, resolve username via backend API
-    if (!loginEmail.includes("@")) {
-      try {
-        const res = await fetch("/api/auth/resolve-identifier", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ identifier: loginEmail }),
-        })
-        const json = await res.json()
-        if (res.ok && json.email) {
-          loginEmail = json.email
-        } else {
-          setError(json.error || "Username not found. Please check spelling or use your email.")
-          setLoading(false)
-          return
-        }
-      } catch (err: any) {
-        setError("Error connecting to server. Please try again.")
-        setLoading(false)
-        return
-      }
-    }
-
-    const { data, error: signInError } = await supabase.auth.signInWithPassword({
-      email: loginEmail,
-      password,
-    })
-
-    if (signInError || !data.user) {
-      setError(signInError?.message || "Login failed.")
-      setLoading(false)
-      return
-    }
-
-    // Check is_admin from profiles table
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("is_admin")
-      .eq("id", data.user.id)
-      .maybeSingle()
-
-    const redirectTo = searchParams.get("redirect")
-
-    if (profile?.is_admin === true) {
-      window.location.href = redirectTo || "/admin/books"
-    } else {
-      window.location.href = redirectTo || "/dashboard"
-    }
   }
 
   return (

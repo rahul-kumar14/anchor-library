@@ -14,11 +14,11 @@ export default async function AdminUsersPage() {
 
   const { count: totalCount } = await supabase
     .from("profiles")
-    .select("*", { count: "exact", head: true })
+    .select("id", { count: "exact", head: true })
 
   const { count: adminCount } = await supabase
     .from("profiles")
-    .select("*", { count: "exact", head: true })
+    .select("id", { count: "exact", head: true })
     .eq("is_admin", true)
 
   return (

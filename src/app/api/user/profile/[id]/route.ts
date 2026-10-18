@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { privateJson, isUuid, findDirectConversation } from "@/lib/server/access"
 
 export async function GET(
   req: NextRequest,
@@ -8,11 +9,12 @@ export async function GET(
 ) {
   try {
     const { id: targetUserId } = await params
+    if (!isUuid(targetUserId)) return privateJson({ error: "Invalid member ID." }, 400)
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
-    const { searchParams } = new URL(req.url)
-    const currentUserId = user?.id || searchParams.get("current_user_id")
+    if (!user) return privateJson({ error: "Please sign in." }, 401)
+    const currentUserId = user.id
 
     const admin = createAdminClient()
 
@@ -28,11 +30,11 @@ export async function GET(
     }
 
     // 2. Fetch target user's real reading progress & books
-    const { data: progressList } = await admin
+    const { data: progressList } = currentUserId === targetUserId ? await admin
       .from("reading_progress")
       .select("id, current_page, total_pages, progress_percent, is_completed, last_read_at, books(id, title, cover_url, total_pages)")
       .eq("user_id", targetUserId)
-      .order("last_read_at", { ascending: false })
+      .order("last_read_at", { ascending: false }) : { data: [] }
 
     const books = progressList || []
     const totalCompleted = books.filter((b: any) => b.is_completed).length
@@ -64,35 +66,21 @@ export async function GET(
       }
 
       // Check if conversation exists
-      const { data: myConvs } = await admin
-        .from("conversation_participants")
-        .select("conversation_id")
-        .eq("user_id", currentUserId)
-
-      if (myConvs && myConvs.length > 0) {
-        const convIds = myConvs.map((c: any) => c.conversation_id)
-        const { data: partnerConv } = await admin
-          .from("conversation_participants")
-          .select("conversation_id")
-          .eq("user_id", targetUserId)
-          .in("conversation_id", convIds)
-          .limit(1)
-          .maybeSingle()
-
-        if (partnerConv) {
-          chatStatus.conversation_id = partnerConv.conversation_id
-          chatStatus.request_status = "accepted"
-        }
+      const conversationId = await findDirectConversation(admin, currentUserId, targetUserId)
+      if (conversationId) {
+        chatStatus.conversation_id = conversationId
+        chatStatus.request_status = "accepted"
       }
     }
 
-    return NextResponse.json({
+    return privateJson({
       profile,
+      reading_history_private: currentUserId !== targetUserId,
       stats: {
         total_books: books.length,
         total_completed: totalCompleted,
         total_reading: totalReading,
-        reading_streak: profile.reading_streak ?? 0,
+        reading_streak: currentUserId === targetUserId ? profile.reading_streak ?? 0 : 0,
       },
       books: books.map((b: any) => ({
         id: b.id,
@@ -107,6 +95,6 @@ export async function GET(
     })
   } catch (err: any) {
     console.error("Error in profile route:", err)
-    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 })
+    return privateJson({ error: "Unable to load the member profile." }, 500)
   }
 }

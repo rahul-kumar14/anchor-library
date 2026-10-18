@@ -1,6 +1,6 @@
 "use client"
 import dynamic from "next/dynamic"
-import { useParams } from "next/navigation"
+import { useParams, notFound } from "next/navigation"
 
 const StudyRoomClient = dynamic(() => import("@/components/study-room/StudyRoomClient"), {
   ssr: false,
@@ -37,13 +37,8 @@ export default function StudyRoomInsidePage() {
   const rawId = params?.id
   const roomId = typeof rawId === "string" ? rawId : Array.isArray(rawId) ? rawId[0] : "silent"
 
-  const room = ROOM_DATA[roomId] || {
-    name: roomId.toUpperCase() + " Study Room",
-    icon: "🏛️",
-    desc: "Collaborative quiet study zone",
-    color: "#6C63FF",
-    defaultGoal: "Deep focused study session",
-  }
+  const room = ROOM_DATA[roomId]
+  if (!room) notFound()
 
   return <StudyRoomClient room={room} roomId={roomId} />
 }
