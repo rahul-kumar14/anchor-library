@@ -27,6 +27,7 @@ export function getRoomShelf(books: ShelfBook[]) {
       const assignment = book.description_hindi || ""
       if (assignment === room.id) return 1000
       const text = [book.title, book.genre, book.category_name].join(" ").toLowerCase()
+      if (room.id === "gate" && /fiction|novel|poetry|literature/.test(text)) return 0
       if (room.id === "english-lit" && technical.test(text)) return 0
       if (room.id === "language" && technical.test(text)) return 0
       if (room.id === "reading" && book.language?.toLowerCase() === "hindi") return 100
