@@ -338,80 +338,34 @@ export default function ReaderPage() {
 
         {/* Center - PDF Renderer */}
         <div className={styles.pdfArea} ref={pdfContainerRef}>
-          <div className={styles.pdfWrapper} style={{ width: pdfLoadFailed ? "100%" : "auto" }}>
-            {pdfLoadFailed && book.pdf_url && book.pdf_url.includes("drive.google.com") ? (
-              <div style={{ width: "100%", height: "calc(100vh - 140px)", position: "relative", overflow: "hidden", borderRadius: "4px" }}>
+          <div className={styles.pdfWrapper} style={{ width: "100%", height: "100%" }}>
+            {book.pdf_url && book.pdf_url.includes("drive.google.com") ? (
+              <div style={{ width: "100%", height: "100%", minHeight: "calc(100vh - 120px)", position: "relative", overflow: "hidden", borderRadius: "4px" }}>
                 <iframe
                   src={book.pdf_url.includes("/preview") ? book.pdf_url : book.pdf_url.replace(/\/view(\?.*)?$/, "/preview")}
-                  style={{ width: "100%", height: "100%", border: "none", minHeight: "650px" }}
+                  style={{ width: "100%", height: "100%", minHeight: "calc(100vh - 120px)", border: "none", display: "block" }}
                   allow="autoplay"
                   title={book.title}
                 />
-                {/* Shield over Google Drive pop-out */}
+                {/* Shield over Google Drive pop-out button */}
                 <div 
                   style={{
                     position: "absolute",
                     top: 0,
                     right: 0,
-                    width: "65px",
+                    width: "70px",
                     height: "60px",
                     background: "transparent",
-                    zIndex: 20,
+                    zIndex: 30,
                     cursor: "default"
                   }}
                 />
               </div>
             ) : (
               <Document
-                file={(() => {
-                  if (!book.pdf_url) return null;
-                  if (book.pdf_url.includes("drive.google.com")) {
-                    const m = book.pdf_url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-                    if (m && m[1]) return `/api/pdf-proxy?id=${m[1]}`;
-                  }
-                  if (book.pdf_url.startsWith("http://") || book.pdf_url.startsWith("https://")) {
-                    // If external, route through proxy to prevent CORS blocking
-                    if (typeof window !== "undefined" && !book.pdf_url.startsWith(window.location.origin)) {
-                      return `/api/pdf-proxy?url=${encodeURIComponent(book.pdf_url)}`;
-                    }
-                  }
-                  return book.pdf_url;
-                })()}
+                file={book.pdf_url}
                 onLoadSuccess={onDocumentLoadSuccess}
-                onLoadError={(err) => {
-                  console.warn("Direct PDF render failed, switching to Google Drive embed view:", err);
-                  setPdfLoadFailed(true);
-                }}
                 loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book...</div>}
-                error={
-                  book.pdf_url && book.pdf_url.includes("drive.google.com") ? (
-                    <div style={{ position: "relative", width: "100%", height: "70vh", overflow: "hidden", borderRadius: "8px" }}>
-                      <iframe
-                        src={book.pdf_url.includes("/preview") ? book.pdf_url : book.pdf_url.replace(/\/view(\?.*)?$/, "/preview")}
-                        style={{ width: "100%", height: "100%", border: "none" }}
-                        allow="autoplay"
-                        title={book.title}
-                      />
-                      {/* Shield over Google Drive pop-out */}
-                      <div 
-                        style={{
-                          position: "absolute",
-                          top: 0,
-                          right: 0,
-                          width: "65px",
-                          height: "60px",
-                          background: "transparent",
-                          zIndex: 20,
-                          cursor: "default"
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <div style={{ padding: "2rem", textAlign: "center" }}>
-                      <p style={{ color: "var(--color-text-secondary)" }}>📖 Loading Book...</p>
-                    </div>
-                  )
-                }
               >
                 <Page 
                   pageNumber={pageNumber} 

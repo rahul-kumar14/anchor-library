@@ -751,80 +751,59 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                 </div>
              </div>
              
-             {/* Actual PDF Viewer */}
-             <div ref={pdfContainerRef} style={{ flex: 1, background: "#e5e5e5", overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", width: "100%", height: "100%", padding: "1rem" }}>
-               {activeBook.pdf_url ? (
-                 <div style={{ margin: "auto 0", boxShadow: "0 8px 32px rgba(0,0,0,0.15)" }}>
-                    <Document
-                      file={(() => {
-                        if (activeBook.pdf_url && activeBook.pdf_url.includes("drive.google.com")) {
-                          const m = activeBook.pdf_url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-                          if (m && m[1]) return `/api/pdf-proxy?id=${m[1]}`;
-                        }
-                        if (activeBook.pdf_url.startsWith("http://") || activeBook.pdf_url.startsWith("https://")) {
-                          if (typeof window !== "undefined" && !activeBook.pdf_url.startsWith(window.location.origin)) {
-                            return `/api/pdf-proxy?url=${encodeURIComponent(activeBook.pdf_url)}`;
-                          }
-                        }
-                        return activeBook.pdf_url;
-                      })()}
-                      onLoadSuccess={({ numPages }) => {
-                        setNumPages(numPages)
-                        setPdfLoadFailed(false)
-                      }}
-                      onLoadError={(err) => {
-                        console.warn("PDF render failed in study room:", err)
-                        setPdfLoadFailed(true)
-                      }}
-                      loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book...</div>}
-                     error={
-                       activeBook.pdf_url.includes("drive.google.com") ? (
-                         <div style={{ position: "relative", width: "100%", height: "70vh", overflow: "hidden", borderRadius: "8px" }}>
-                           <iframe
-                             src={activeBook.pdf_url.includes("/preview") ? activeBook.pdf_url : activeBook.pdf_url.replace(/\/view(\?.*)?$/, "/preview")}
-                             style={{ width: "100%", height: "100%", border: "none" }}
-                             allow="autoplay"
-                             title={activeBook.title}
-                           />
-                           {/* Shield over Google Drive popout icon */}
-                           <div 
-                             style={{
-                               position: "absolute",
-                               top: 0,
-                               right: 0,
-                               width: "65px",
-                               height: "60px",
-                               background: "transparent",
-                               zIndex: 10,
-                               cursor: "default"
-                             }}
-                           />
-                         </div>
-                       ) : (
-                         <div style={{ padding: "2rem", textAlign: "center" }}>
-                           <p style={{ color: "var(--color-text-secondary)" }}>📖 Loading Book...</p>
-                         </div>
-                       )
-                     }
-                   >
-                     <Page 
-                       pageNumber={pageNumber} 
-                       renderTextLayer={true} 
-                       renderAnnotationLayer={true}
-                       scale={scale}
-                       width={pdfBoxWidth ? Math.min(pdfBoxWidth, 750) : undefined}
-                     />
-                   </Document>
-                 </div>
-               ) : (
-                  <div style={{ margin: "auto", textAlign: "center", padding: "2rem" }}>
-                    <span style={{ fontSize: "4rem" }}>📖</span>
-                    <p style={{ color: "var(--color-text-secondary)", marginTop: "1rem" }}>
-                      This book does not have a PDF uploaded.
-                    </p>
-                  </div>
-               )}
-             </div>
+              {/* Actual PDF Viewer */}
+              <div ref={pdfContainerRef} style={{ flex: 1, background: "#f8fafc", overflow: "hidden", display: "flex", flexDirection: "column", width: "100%", height: "100%", padding: "0.5rem" }}>
+                {activeBook.pdf_url ? (
+                  activeBook.pdf_url.includes("drive.google.com") ? (
+                    <div style={{ position: "relative", width: "100%", height: "100%", minHeight: "550px", overflow: "hidden", borderRadius: "8px", background: "#ffffff", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}>
+                      <iframe
+                        src={activeBook.pdf_url.includes("/preview") ? activeBook.pdf_url : activeBook.pdf_url.replace(/\/view(\?.*)?$/, "/preview")}
+                        style={{ width: "100%", height: "100%", minHeight: "550px", border: "none", display: "block" }}
+                        allow="autoplay"
+                        title={activeBook.title}
+                      />
+                      {/* Invisible Shield over Google Drive pop-out button */}
+                      <div 
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          right: 0,
+                          width: "70px",
+                          height: "60px",
+                          background: "transparent",
+                          zIndex: 30,
+                          cursor: "default"
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div style={{ margin: "auto 0", boxShadow: "0 8px 32px rgba(0,0,0,0.15)" }}>
+                      <Document
+                        file={activeBook.pdf_url}
+                        onLoadSuccess={({ numPages }) => {
+                          setNumPages(numPages);
+                        }}
+                        loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book...</div>}
+                      >
+                        <Page 
+                          pageNumber={pageNumber} 
+                          renderTextLayer={true} 
+                          renderAnnotationLayer={true}
+                          scale={scale}
+                          width={pdfBoxWidth ? Math.min(pdfBoxWidth, 750) : undefined}
+                        />
+                      </Document>
+                    </div>
+                  )
+                ) : (
+                   <div style={{ margin: "auto", textAlign: "center", padding: "2rem" }}>
+                     <span style={{ fontSize: "4rem" }}>📖</span>
+                     <p style={{ color: "var(--color-text-secondary)", marginTop: "1rem" }}>
+                       This book does not have a PDF uploaded.
+                     </p>
+                   </div>
+                )}
+              </div>
 
              {/* Book Navigation Bar */}
              <div style={{ padding: "0.75rem", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--color-surface)" }}>
