@@ -9,9 +9,9 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import styles from "./page.module.css"
 
-// Initialize pdf.js worker with cdnjs
-if (typeof window !== "undefined") {
-  pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs`;
+// Initialize pdf.js worker with unpkg fallback
+if (typeof window !== "undefined" && !pdfjs.GlobalWorkerOptions.workerSrc) {
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 }
 
 export default function ReaderPage() {
@@ -340,25 +340,12 @@ export default function ReaderPage() {
         <div className={styles.pdfArea} ref={pdfContainerRef}>
           <div className={styles.pdfWrapper} style={{ width: pdfLoadFailed ? "100%" : "auto" }}>
             {pdfLoadFailed && book.pdf_url && book.pdf_url.includes("drive.google.com") ? (
-              <div style={{ width: "100%", height: "calc(100vh - 140px)", position: "relative", overflow: "hidden", borderRadius: "4px" }}>
+              <div style={{ width: "100%", height: "calc(100vh - 140px)", display: "flex", flexDirection: "column" }}>
                 <iframe
                   src={book.pdf_url.includes("/preview") ? book.pdf_url : book.pdf_url.replace(/\/view(\?.*)?$/, "/preview")}
-                  style={{ width: "100%", height: "100%", border: "none", minHeight: "650px", display: "block" }}
+                  style={{ width: "100%", height: "100%", border: "none", minHeight: "650px", borderRadius: "4px" }}
                   allow="autoplay"
                   title={book.title}
-                />
-                {/* Shield over Google Drive pop-out button */}
-                <div 
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    right: 0,
-                    width: "70px",
-                    height: "60px",
-                    background: "transparent",
-                    zIndex: 30,
-                    cursor: "default"
-                  }}
                 />
               </div>
             ) : (
@@ -370,22 +357,32 @@ export default function ReaderPage() {
                     if (m && m[1]) return `/api/pdf-proxy?id=${m[1]}`;
                   }
                   if (book.pdf_url.startsWith("http://") || book.pdf_url.startsWith("https://")) {
+                    // If external, route through proxy to prevent CORS blocking
                     if (typeof window !== "undefined" && !book.pdf_url.startsWith(window.location.origin)) {
                       return `/api/pdf-proxy?url=${encodeURIComponent(book.pdf_url)}`;
                     }
                   }
                   return book.pdf_url;
                 })()}
-                onLoadSuccess={(pdf) => {
-                  onDocumentLoadSuccess(pdf);
-                  setPdfLoadFailed(false);
-                }}
+                onLoadSuccess={onDocumentLoadSuccess}
                 onLoadError={(err) => {
-                  console.warn("Direct canvas render failed, switching to fallback:", err);
+                  console.warn("Direct PDF render failed, switching to Google Drive embed view:", err);
                   setPdfLoadFailed(true);
                 }}
-                loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book into Canvas Reader...</div>}
-                error={null}
+                loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book...</div>}
+                error={
+                  <div style={{ padding: "2rem", textAlign: "center" }}>
+                    <p style={{ color: "red", marginBottom: "1rem" }}>Failed to load PDF directly.</p>
+                    {book.pdf_url && book.pdf_url.includes("drive.google.com") && (
+                      <iframe
+                        src={book.pdf_url.includes("/preview") ? book.pdf_url : book.pdf_url.replace(/\/view(\?.*)?$/, "/preview")}
+                        style={{ width: "100%", height: "70vh", border: "none" }}
+                        allow="autoplay"
+                        title={book.title}
+                      />
+                    )}
+                  </div>
+                }
               >
                 <Page 
                   pageNumber={pageNumber} 

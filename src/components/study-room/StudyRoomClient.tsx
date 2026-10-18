@@ -42,12 +42,12 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   const [activeBook, setActiveBook] = useState<any | null>(null)
   const [pdfLoadFailed, setPdfLoadFailed] = useState(false)
 
-  // Client-only setup for pdfjs worker
+  // Client-only setup for pdfjs worker with unpkg fallback
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs`;
+    if (typeof window !== "undefined" && !pdfjs.GlobalWorkerOptions.workerSrc) {
+      pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
     }
-  }, []);
+  }, [])
 
   // Room Conversation ID mapping
   const ROOM_CONV_IDS: Record<string, string> = {
@@ -751,76 +751,64 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                 </div>
              </div>
              
-              {/* Actual PDF Viewer */}
-              <div ref={pdfContainerRef} style={{ flex: 1, background: "#e5e5e5", overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", width: "100%", height: "100%", padding: "1rem" }}>
-                {activeBook.pdf_url ? (
-                  pdfLoadFailed && activeBook.pdf_url.includes("drive.google.com") ? (
-                    <div style={{ position: "relative", width: "100%", height: "100%", minHeight: "550px", overflow: "hidden", borderRadius: "8px", background: "#ffffff", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}>
-                      <iframe
-                        src={activeBook.pdf_url.includes("/preview") ? activeBook.pdf_url : activeBook.pdf_url.replace(/\/view(\?.*)?$/, "/preview")}
-                        style={{ width: "100%", height: "100%", minHeight: "550px", border: "none", display: "block" }}
-                        allow="autoplay"
-                        title={activeBook.title}
-                      />
-                      {/* Shield over Google Drive pop-out button */}
-                      <div 
-                        style={{
-                          position: "absolute",
-                          top: 0,
-                          right: 0,
-                          width: "70px",
-                          height: "60px",
-                          background: "transparent",
-                          zIndex: 30,
-                          cursor: "default"
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <div style={{ margin: "auto 0", boxShadow: "0 8px 32px rgba(0,0,0,0.15)" }}>
-                      <Document
-                        file={(() => {
-                          if (activeBook.pdf_url && activeBook.pdf_url.includes("drive.google.com")) {
-                            const m = activeBook.pdf_url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-                            if (m && m[1]) return `/api/pdf-proxy?id=${m[1]}`;
+             {/* Actual PDF Viewer */}
+             <div ref={pdfContainerRef} style={{ flex: 1, background: "#e5e5e5", overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", width: "100%", height: "100%", padding: "1rem" }}>
+               {activeBook.pdf_url ? (
+                 <div style={{ margin: "auto 0", boxShadow: "0 8px 32px rgba(0,0,0,0.15)" }}>
+                    <Document
+                      file={(() => {
+                        if (activeBook.pdf_url && activeBook.pdf_url.includes("drive.google.com")) {
+                          const m = activeBook.pdf_url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+                          if (m && m[1]) return `/api/pdf-proxy?id=${m[1]}`;
+                        }
+                        if (activeBook.pdf_url.startsWith("http://") || activeBook.pdf_url.startsWith("https://")) {
+                          if (typeof window !== "undefined" && !activeBook.pdf_url.startsWith(window.location.origin)) {
+                            return `/api/pdf-proxy?url=${encodeURIComponent(activeBook.pdf_url)}`;
                           }
-                          if (activeBook.pdf_url.startsWith("http://") || activeBook.pdf_url.startsWith("https://")) {
-                            if (typeof window !== "undefined" && !activeBook.pdf_url.startsWith(window.location.origin)) {
-                              return `/api/pdf-proxy?url=${encodeURIComponent(activeBook.pdf_url)}`;
-                            }
-                          }
-                          return activeBook.pdf_url;
-                        })()}
-                        onLoadSuccess={({ numPages }) => {
-                          setNumPages(numPages);
-                          setPdfLoadFailed(false);
-                        }}
-                        onLoadError={(err) => {
-                          console.warn("Direct canvas render failed in study room, fallback to embed:", err);
-                          setPdfLoadFailed(true);
-                        }}
-                        loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book into Canvas...</div>}
-                        error={null}
-                      >
-                        <Page 
-                          pageNumber={pageNumber} 
-                          renderTextLayer={true} 
-                          renderAnnotationLayer={true}
-                          scale={scale}
-                          width={pdfBoxWidth ? Math.min(pdfBoxWidth, 750) : undefined}
-                        />
-                      </Document>
-                    </div>
-                  )
-                ) : (
-                   <div style={{ margin: "auto", textAlign: "center", padding: "2rem" }}>
-                     <span style={{ fontSize: "4rem" }}>📖</span>
-                     <p style={{ color: "var(--color-text-secondary)", marginTop: "1rem" }}>
-                       This book does not have a PDF uploaded.
-                     </p>
-                   </div>
-                )}
-              </div>
+                        }
+                        return activeBook.pdf_url;
+                      })()}
+                      onLoadSuccess={({ numPages }) => {
+                        setNumPages(numPages)
+                        setPdfLoadFailed(false)
+                      }}
+                      onLoadError={(err) => {
+                        console.warn("PDF render failed in study room:", err)
+                        setPdfLoadFailed(true)
+                      }}
+                      loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book...</div>}
+                     error={
+                       <div style={{ padding: "2rem", textAlign: "center" }}>
+                         <p style={{ color: "red", marginBottom: "1rem" }}>Failed to load PDF.</p>
+                         {activeBook.pdf_url.includes("drive.google.com") && (
+                           <iframe
+                             src={activeBook.pdf_url.includes("/preview") ? activeBook.pdf_url : activeBook.pdf_url.replace(/\/view(\?.*)?$/, "/preview")}
+                             style={{ width: "100%", height: "70vh", border: "none" }}
+                             allow="autoplay"
+                             title={activeBook.title}
+                           />
+                         )}
+                       </div>
+                     }
+                   >
+                     <Page 
+                       pageNumber={pageNumber} 
+                       renderTextLayer={true} 
+                       renderAnnotationLayer={true}
+                       scale={scale}
+                       width={pdfBoxWidth ? Math.min(pdfBoxWidth, 750) : undefined}
+                     />
+                   </Document>
+                 </div>
+               ) : (
+                  <div style={{ margin: "auto", textAlign: "center", padding: "2rem" }}>
+                    <span style={{ fontSize: "4rem" }}>📖</span>
+                    <p style={{ color: "var(--color-text-secondary)", marginTop: "1rem" }}>
+                      This book does not have a PDF uploaded.
+                    </p>
+                  </div>
+               )}
+             </div>
 
              {/* Book Navigation Bar */}
              <div style={{ padding: "0.75rem", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--color-surface)" }}>
@@ -1421,11 +1409,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                           <button 
                             className="btn btn-primary btn-sm" 
                             style={{ marginTop: "0.5rem", width: "100%", justifyContent: "center" }}
-                            onClick={() => {
-                              setPdfLoadFailed(false);
-                              setPageNumber(1);
-                              setActiveBook(activeBook?.id === b.id ? null : b);
-                            }}
+                            onClick={() => setActiveBook(activeBook?.id === b.id ? null : b)}
                           >
                             {activeBook?.id === b.id ? "Close" : "Read Now"}
                           </button>
