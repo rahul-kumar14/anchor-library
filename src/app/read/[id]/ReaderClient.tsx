@@ -370,19 +370,7 @@ export default function ReaderPage() {
                   setPdfLoadFailed(true);
                 }}
                 loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book...</div>}
-                error={
-                  <div style={{ padding: "2rem", textAlign: "center" }}>
-                    <p style={{ color: "red", marginBottom: "1rem" }}>Failed to load PDF directly.</p>
-                    {book.pdf_url && book.pdf_url.includes("drive.google.com") && (
-                      <iframe
-                        src={book.pdf_url.includes("/preview") ? book.pdf_url : book.pdf_url.replace(/\/view(\?.*)?$/, "/preview")}
-                        style={{ width: "100%", height: "70vh", border: "none" }}
-                        allow="autoplay"
-                        title={book.title}
-                      />
-                    )}
-                  </div>
-                }
+                error={<div style={{ padding: "2rem", textAlign: "center", color: "red" }}>Failed to load PDF. Please retry.</div>}
               >
                 <Page 
                   pageNumber={pageNumber} 
