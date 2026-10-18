@@ -1,5 +1,5 @@
 "use client"
-import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react"
+import { createContext, useContext, useEffect, useState, useRef, useCallback, ReactNode } from "react"
 import { createClient } from "@/lib/supabase/client"
 
 export interface ActiveStudySession {
@@ -31,6 +31,9 @@ export function StudyRoomProvider({ children }: { children: ReactNode }) {
   const [activeSession, setActiveSession] = useState<ActiveStudySession | null>(null)
   const channelRef = useRef<any>(null)
   const supabase = createClient()
+  const sessionRef = useRef(activeSession)
+  sessionRef.current = activeSession
+  const identityRef = useRef<{ id: string; username: string } | null>(null)
 
   // Load active session from localStorage on mount
   useEffect(() => {
@@ -45,64 +48,52 @@ export function StudyRoomProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // Sync Supabase presence whenever activeSession changes
+  // Keep one presence subscription for this room. Status/book changes update
+  // its payload instead of reconnecting and briefly counting a member twice.
   useEffect(() => {
-    if (!activeSession) {
-      if (channelRef.current) {
-        channelRef.current.unsubscribe()
-        channelRef.current = null
-      }
-      return
-    }
-
-    let isMounted = true
-
+    if (!activeSession?.roomId) return
+    let disposed = false
+    let channel: ReturnType<typeof supabase.channel> | null = null
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user || !isMounted) return
-
-      const username = user.user_metadata?.username || user.email?.split("@")[0] || "User"
-      
-      // Cleanup previous channel if roomId changed
-      if (channelRef.current) {
-        channelRef.current.unsubscribe()
-      }
-
-      const ch = supabase.channel(`room:${activeSession.roomId}`, {
-        config: { presence: { key: "" } },
-      })
-
-      ch.subscribe(async (status) => {
-        if (status === "SUBSCRIBED") {
-          await ch.track({
-            id: user.id,
-            username,
-            status: activeSession.status || "Studying quietly ✍️",
-            readingBook: activeSession.readingBook || null,
-            joined_at: activeSession.joinedAt || new Date().toISOString(),
-          })
+      if (!user || disposed) return
+      identityRef.current = { id: user.id, username: user.user_metadata?.username || user.email?.split("@")[0] || "User" }
+      const ch = supabase.channel(`room:${activeSession.roomId}`, { config: { presence: { key: user.id } } })
+      channel = ch
+      channelRef.current = ch
+      ch.subscribe(async status => {
+        const session = sessionRef.current
+        if (status === "SUBSCRIBED" && !disposed && session) {
+          await ch.track({ ...identityRef.current, status: session.status,
+            readingBook: session.readingBook || null, joined_at: session.joinedAt })
         }
       })
-
-      channelRef.current = ch
     })
-
     return () => {
-      isMounted = false
-      // Do NOT unsubscribe here when navigating to another page!
-      // Unsubscribe only happens when activeSession is cleared via leaveSession().
+      disposed = true
+      if (channel) supabase.removeChannel(channel)
+      if (channelRef.current === channel) channelRef.current = null
     }
-  }, [activeSession?.roomId, activeSession?.status, activeSession?.readingBook])
+  }, [activeSession?.roomId, supabase])
 
-  const joinSession = (session: ActiveStudySession) => {
-    setActiveSession(session)
+  useEffect(() => {
+    const ch = channelRef.current
+    if (ch?.state === "joined" && activeSession && identityRef.current) {
+      ch.track({ ...identityRef.current, status: activeSession.status,
+        readingBook: activeSession.readingBook || null, joined_at: activeSession.joinedAt }).catch(console.error)
+    }
+  }, [activeSession?.status, activeSession?.readingBook])
+
+  const joinSession = useCallback((session: ActiveStudySession) => {
+    setActiveSession(previous => previous?.roomId === session.roomId ? previous : session)
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(session))
     } catch {}
-  }
+  }, [])
 
-  const updateSessionStatus = (status: string, readingBook?: string | null) => {
+  const updateSessionStatus = useCallback((status: string, readingBook?: string | null) => {
     setActiveSession((prev) => {
       if (!prev) return null
+      if (prev.status === status && (readingBook === undefined || prev.readingBook === readingBook)) return prev
       const updated = {
         ...prev,
         status,
@@ -113,18 +104,18 @@ export function StudyRoomProvider({ children }: { children: ReactNode }) {
       } catch {}
       return updated
     })
-  }
+  }, [])
 
-  const leaveSession = () => {
+  const leaveSession = useCallback(() => {
     setActiveSession(null)
     try {
       localStorage.removeItem(STORAGE_KEY)
     } catch {}
     if (channelRef.current) {
-      channelRef.current.unsubscribe()
+      supabase.removeChannel(channelRef.current)
       channelRef.current = null
     }
-  }
+  }, [supabase])
 
   return (
     <StudyRoomContext.Provider value={{ activeSession, joinSession, leaveSession, updateSessionStatus }}>

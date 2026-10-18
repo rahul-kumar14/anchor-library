@@ -1,37 +1,36 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
-import { useParams, useRouter } from "next/navigation"
+import { useParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { Document, Page, pdfjs } from "react-pdf"
-import 'react-pdf/dist/Page/AnnotationLayer.css';
-import 'react-pdf/dist/Page/TextLayer.css';
+import dynamic from "next/dynamic"
 import styles from "./page.module.css"
+import { useReadingProgress } from "@/components/pdf/useReadingProgress"
+import { useBookAnnotations } from "@/components/pdf/useBookAnnotations"
+import PageJump from "@/components/pdf/PageJump"
 
-// Initialize pdf.js worker with unpkg fallback
-if (typeof window !== "undefined" && !pdfjs.GlobalWorkerOptions.workerSrc) {
-  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
-}
+const PdfCanvas = dynamic(() => import("@/components/pdf/PdfCanvas"), { ssr: false })
 
 export default function ReaderPage() {
   const { id } = useParams()
-  const router = useRouter()
   const supabase = createClient()
 
   const [book, setBook] = useState<any>(null)
-  const [numPages, setNumPages] = useState<number | null>(null)
-  const [pageNumber, setPageNumber] = useState(1)
   const [scale, setScale] = useState(1.0)
   const [containerWidth, setContainerWidth] = useState<number | null>(null)
   const pdfContainerRef = useRef<HTMLDivElement>(null)
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
   const [isFlipping, setIsFlipping] = useState(false)
+  const [showNotes, setShowNotes] = useState(false)
   const [selectedText, setSelectedText] = useState("")
   const [noteInput, setNoteInput] = useState("")
-  const [annotations, setAnnotations] = useState<any[]>([])
-  const [pdfLoadFailed, setPdfLoadFailed] = useState(false)
+  const { pageNumber, setPageNumber, numPages, setNumPages, progressStatus } = useReadingProgress(typeof id === "string" ? id : null, userId)
+  const { annotations, saveAnnotation, saving, noteStatus } = useBookAnnotations(typeof id === "string" ? id : null, userId)
+  const [watermark, setWatermark] = useState("Reading copy")
+
+  useEffect(() => { setSelectedText("") }, [pageNumber, id])
 
   // Measure container width for auto-fit on load
   useEffect(() => {
@@ -47,12 +46,12 @@ export default function ReaderPage() {
     const observer = new ResizeObserver(updateWidth);
     observer.observe(pdfContainerRef.current);
     return () => observer.disconnect();
-  }, []);
+  }, [loading]);
 
   useEffect(() => {
     async function init() {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) setUserId(session.user.id);
+      if (session) { setUserId(session.user.id); setWatermark(session.user.user_metadata?.username || "Member"); }
     }
     init();
   }, [supabase.auth]);
@@ -61,48 +60,24 @@ export default function ReaderPage() {
     async function loadBookAndProgress() {
       if (!id) return
       setLoading(true)
-      const { data, error } = await supabase.from("books").select("*").eq("id", id).maybeSingle()
+      const { data, error } = await supabase.from("books").select("id,title,total_pages").eq("id", id).maybeSingle()
       if (data) {
         setBook(data)
-        
-        // Fetch reading progress
-        if (userId) {
-          const { data: prog } = await supabase
-            .from("reading_progress")
-            .select("current_page")
-            .eq("book_id", id)
-            .eq("user_id", userId)
-            .maybeSingle()
-            
-          if (prog && prog.current_page) {
-            setPageNumber(prog.current_page)
-          }
-
-          // Fetch annotations
-          const { data: annots } = await supabase
-            .from("annotations")
-            .select("*")
-            .eq("book_id", id)
-            .eq("user_id", userId)
-            .order("created_at", { ascending: false })
-            
-          if (annots) setAnnotations(annots)
-        }
       } else {
         console.error("Book not found", error)
       }
       setLoading(false)
     }
     loadBookAndProgress()
-  }, [id, userId, supabase])
+  }, [id, supabase])
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages)
-    setPdfLoadFailed(false)
+    setPageNumber(page => Math.max(1, Math.min(page, numPages)))
   }
 
   async function changePage(offset: number) {
-    if (isFlipping) return; // Prevent spamming
+    if (isFlipping || !numPages) return; // Prevent spamming
     
     const newPage = pageNumber + offset;
     if (newPage < 1 || (numPages && newPage > numPages)) return;
@@ -121,59 +96,6 @@ export default function ReaderPage() {
       }
     });
   }
-
-  // Save reading progress whenever pageNumber changes
-  useEffect(() => {
-    async function saveProgress() {
-      if (userId && book) {
-        const progressPercent = (numPages || book.total_pages) 
-          ? Math.round((pageNumber / (numPages || book.total_pages)) * 100) 
-          : 0;
-          
-        const payload = {
-          user_id: userId,
-          book_id: book.id,
-          current_page: pageNumber,
-          total_pages: numPages || book.total_pages || 0,
-          is_completed: pageNumber === (numPages || book.total_pages),
-          progress_percent: progressPercent,
-          last_read_at: new Date().toISOString()
-        };
-
-        // First check if a record exists
-        const { data: existingRecord } = await supabase
-          .from("reading_progress")
-          .select("id")
-          .eq("user_id", userId)
-          .eq("book_id", book.id)
-          .maybeSingle();
-
-        if (existingRecord) {
-          // Update existing
-          const { error: updateError } = await supabase
-            .from("reading_progress")
-            .update(payload)
-            .eq("id", existingRecord.id);
-            
-          if (updateError) console.error("Failed to update progress:", updateError);
-        } else {
-          // Insert new
-          const { error: insertError } = await supabase
-            .from("reading_progress")
-            .insert([payload]);
-            
-          if (insertError) console.error("Failed to insert progress:", insertError);
-        }
-      }
-    }
-    
-    // Debounce the save to prevent spamming the DB if user flips quickly
-    const timeoutId = setTimeout(() => {
-      saveProgress();
-    }, 1000);
-
-    return () => clearTimeout(timeoutId);
-  }, [pageNumber, userId, book, numPages, supabase]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -196,7 +118,9 @@ export default function ReaderPage() {
   useEffect(() => {
     const handleSelectionChange = () => {
       const selection = window.getSelection();
-      if (selection && selection.toString().trim().length > 0) {
+      if (selection && selection.toString().trim().length > 0 &&
+          pdfContainerRef.current?.contains(selection.anchorNode) &&
+          pdfContainerRef.current?.contains(selection.focusNode)) {
         setSelectedText(selection.toString().trim());
       }
     };
@@ -206,98 +130,18 @@ export default function ReaderPage() {
   }, []);
 
   async function handleSaveAnnotation() {
-    if (!book || !selectedText) return;
-    
-    if (!userId) {
-      alert("Please login to save notes and highlights permanently.");
-      return;
-    }
-
-    const tempId = Date.now().toString();
-    const newAnnotation = {
-      id: tempId,
-      user_id: userId,
-      book_id: book.id,
-      page_number: pageNumber,
-      selected_text: selectedText,
-      note: noteInput,
-      created_at: new Date().toISOString()
-    };
-
-    // Optimistic UI Update (so user sees it immediately)
-    setAnnotations([newAnnotation, ...annotations]);
-    setSelectedText("");
-    setNoteInput("");
-    window.getSelection()?.removeAllRanges();
-
-    if (userId) {
-      try {
-        const { data, error } = await supabase.from("annotations").insert({
-          user_id: userId,
-          book_id: book.id,
-          page_number: pageNumber,
-          selected_text: newAnnotation.selected_text,
-          note: newAnnotation.note
-        }).select().single();
-        
-        if (error) throw error;
-        
-        if (data) {
-          // Replace temp annotation with real one from DB
-          setAnnotations(prev => prev.map(a => a.id === tempId ? data : a));
-        }
-      } catch (err) {
-        console.error("Failed to save annotation to DB", err);
-        alert("Failed to save annotation to DB. Did you run the SQL script?");
-      }
+    if (await saveAnnotation(pageNumber, selectedText, noteInput)) {
+      setSelectedText("")
+      setNoteInput("")
+      window.getSelection()?.removeAllRanges()
     }
   }
-
-  // Apply visual highlights manually via DOM
-  useEffect(() => {
-    const applyHighlights = () => {
-      const pageAnnotations = annotations.filter(a => a.page_number === pageNumber);
-      const textLayers = document.querySelectorAll('.react-pdf__Page__textContent');
-      
-      textLayers.forEach(layer => {
-        const spans = layer.querySelectorAll('span');
-        spans.forEach(span => {
-          // Reset
-          span.style.borderBottom = '';
-          span.style.backgroundColor = '';
-          
-          const str = span.textContent || "";
-          if (str.trim().length < 2) return;
-          
-          // Check if this span is part of any annotation
-          for (const ann of pageAnnotations) {
-            if (!ann.selected_text) continue;
-            
-            // Remove spaces to handle weird PDF whitespace
-            const hlText = ann.selected_text.replace(/\s+/g, '');
-            const spanText = str.replace(/\s+/g, '');
-            
-            if (hlText.includes(spanText) || spanText.includes(hlText)) {
-              span.style.borderBottom = '3px solid #3b82f6'; // Blue underline
-              span.style.backgroundColor = 'rgba(59, 130, 246, 0.2)'; // Light blue bg for better visibility
-              break;
-            }
-          }
-        });
-      });
-    };
-
-    // Run when annotations/page changes, use a small delay to ensure text layer is rendered
-    const timeout = setTimeout(applyHighlights, 800);
-    
-    return () => clearTimeout(timeout);
-  }, [annotations, pageNumber, scale]);
 
   if (loading) {
     return <div className={styles.readerContainer} style={{ justifyContent: "center", alignItems: "center" }}>Loading Book...</div>
   }
 
-  if (!book || !book.pdf_url) {
+  if (!book) {
     return <div className={styles.readerContainer} style={{ justifyContent: "center", alignItems: "center" }}>Book PDF not available.</div>
   }
 
@@ -314,6 +158,7 @@ export default function ReaderPage() {
           <div className={styles.bookTitle}>{book.title}</div>
         </div>
         <div className={styles.topRight}>
+          <button className={`${styles.iconBtn} ${styles.notesToggle}`} aria-expanded={showNotes} onClick={() => setShowNotes(open => !open)}>Notes</button>
           <button className={styles.iconBtn} onClick={() => setScale(s => Math.max(0.5, s - 0.2))} title="Zoom Out">➖</button>
           <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)", minWidth: "40px", textAlign: "center" }}>
             {Math.round(scale * 100)}%
@@ -328,65 +173,30 @@ export default function ReaderPage() {
         <aside className={styles.sidebarLeft}>
           <div className={styles.sidebarHeader}>📑 Contents</div>
           <div className={styles.sidebarContent}>
-            {/* Placeholder for real TOC parsing */}
-            <div className={styles.tocItem} onClick={() => setPageNumber(1)}>Cover</div>
-            <div className={styles.tocItem} onClick={() => setPageNumber(5)}>Chapter 1</div>
-            <div className={styles.tocItem} onClick={() => setPageNumber(15)}>Chapter 2</div>
-            <div className={styles.tocItem} onClick={() => setPageNumber(30)}>Chapter 3</div>
+            <button className={styles.tocItem} onClick={() => setPageNumber(1)}>First page</button>
+            <p style={{ fontSize: "0.8rem", marginTop: "1rem", color: "var(--color-text-muted)" }}>Use the page controls below to jump to any page. Saved notes also link to their pages.</p>
           </div>
         </aside>
 
         {/* Center - PDF Renderer */}
         <div className={styles.pdfArea} ref={pdfContainerRef}>
-          <div className={styles.pdfWrapper} style={{ width: pdfLoadFailed ? "100%" : "auto" }}>
-            {pdfLoadFailed && book.pdf_url && book.pdf_url.includes("drive.google.com") ? (
-              <div style={{ width: "100%", height: "calc(100vh - 140px)", display: "flex", flexDirection: "column" }}>
-                <iframe
-                  src={book.pdf_url.includes("/preview") ? book.pdf_url : book.pdf_url.replace(/\/view(\?.*)?$/, "/preview")}
-                  style={{ width: "100%", height: "100%", border: "none", minHeight: "650px", borderRadius: "4px" }}
-                  allow="autoplay"
-                  title={book.title}
-                />
-              </div>
-            ) : (
-              <Document
-                file={(() => {
-                  if (!book.pdf_url) return null;
-                  if (book.pdf_url.includes("drive.google.com")) {
-                    const m = book.pdf_url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-                    if (m && m[1]) return `/api/pdf-proxy?id=${m[1]}`;
-                  }
-                  if (book.pdf_url.startsWith("http://") || book.pdf_url.startsWith("https://")) {
-                    // If external, route through proxy to prevent CORS blocking
-                    if (typeof window !== "undefined" && !book.pdf_url.startsWith(window.location.origin)) {
-                      return `/api/pdf-proxy?url=${encodeURIComponent(book.pdf_url)}`;
-                    }
-                  }
-                  return book.pdf_url;
-                })()}
-                onLoadSuccess={onDocumentLoadSuccess}
-                onLoadError={(err) => {
-                  console.warn("Direct PDF render failed, switching to Google Drive embed view:", err);
-                  setPdfLoadFailed(true);
-                }}
-                loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book...</div>}
-                error={<div style={{ padding: "2rem", textAlign: "center", color: "red" }}>Failed to load PDF. Please retry.</div>}
-              >
-                <Page 
-                  pageNumber={pageNumber} 
-                  renderTextLayer={true} 
-                  renderAnnotationLayer={true}
-                  scale={scale}
-                  width={containerWidth ? Math.min(containerWidth, 800) : undefined}
-                  className={styles.pdfPageContent}
-                />
-              </Document>
-            )}
+          <div className={`${styles.pdfWrapper} ${isFlipping ? styles.pageFlip : ""}`}>
+            <PdfCanvas
+              bookId={book.id}
+              watermark={watermark}
+              onPageChange={setPageNumber}
+              pageNumber={pageNumber}
+              scale={scale}
+              width={containerWidth ? Math.min(containerWidth, 800) : undefined}
+              pageClassName={styles.pdfPageContent}
+              highlights={annotations}
+              onLoadSuccess={onDocumentLoadSuccess}
+            />
           </div>
         </div>
 
         {/* Right Sidebar - Notes & Highlights */}
-        <aside className={styles.sidebarRight}>
+        <aside className={`${styles.sidebarRight} ${showNotes ? styles.notesOpen : ""}`}>
           <div className={styles.sidebarHeader}>📝 Notes & Highlights</div>
           <div className={styles.sidebarContent}>
             <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginBottom: "0.8rem" }}>
@@ -414,49 +224,18 @@ export default function ReaderPage() {
               <div style={{ display: "flex", gap: "0.5rem" }}>
                 <button 
                   className="btn btn-primary btn-sm w-full" 
-                  onClick={async () => {
-                    const textToSave = selectedText || `Page ${pageNumber} Note`;
-                    if (!noteInput.trim()) {
-                      alert("Please type a note first.");
-                      return;
-                    }
-                    if (!userId) {
-                      alert("Please login to save notes.");
-                      return;
-                    }
-                    const tempId = Date.now().toString();
-                    const newAnnotation = {
-                      id: tempId,
-                      user_id: userId,
-                      book_id: book.id,
-                      page_number: pageNumber,
-                      selected_text: textToSave,
-                      note: noteInput,
-                      created_at: new Date().toISOString()
-                    };
-                    setAnnotations([newAnnotation, ...annotations]);
-                    setSelectedText("");
-                    setNoteInput("");
-                    try {
-                      await supabase.from("annotations").insert({
-                        user_id: userId,
-                        book_id: book.id,
-                        page_number: pageNumber,
-                        selected_text: textToSave,
-                        note: noteInput
-                      });
-                    } catch (e) {
-                      console.error(e);
-                    }
-                  }}
+                  onClick={handleSaveAnnotation}
+                  disabled={saving || (!selectedText.trim() && !noteInput.trim())}
                 >
-                  Save Note
+                  {saving ? "Saving…" : selectedText && !noteInput.trim() ? "Save Highlight" : "Save Note"}
                 </button>
                 {selectedText && (
                   <button className="btn btn-ghost btn-sm" onClick={() => setSelectedText("")}>Clear Quote</button>
                 )}
               </div>
             </div>
+
+            <p role="status" style={{ fontSize: "0.8rem", marginBottom: "0.75rem" }}>{noteStatus}</p>
 
             {/* Saved Annotations */}
             {annotations.filter(a => a.page_number === pageNumber).length > 0 && (
@@ -495,20 +274,20 @@ export default function ReaderPage() {
         <button 
           className="btn btn-ghost" 
           onClick={() => changePage(-1)} 
-          disabled={pageNumber <= 1}
+          disabled={!numPages || pageNumber <= 1}
         >
           ◀ Previous
         </button>
         
         <div className={styles.pageInfo}>
-          Page {pageNumber} {numPages ? `/ ${numPages}` : ""}
+          <PageJump page={pageNumber} total={numPages} onChange={setPageNumber} />
         </div>
 
         <div className={styles.progressContainer}>
           <div className={styles.progressBar}>
             <div className={styles.progressFill} style={{ width: `${progressPercent}%` }}></div>
           </div>
-          <div className={styles.progressText}>{progressPercent}%</div>
+          <div className={styles.progressText}>{progressPercent}% · {progressStatus}</div>
         </div>
 
         <button 

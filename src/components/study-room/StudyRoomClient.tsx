@@ -3,12 +3,15 @@ import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import styles from "@/app/(main)/study-rooms/[id]/page.module.css"
-import { Document, Page, pdfjs } from "react-pdf"
-import 'react-pdf/dist/Page/AnnotationLayer.css'
-import 'react-pdf/dist/Page/TextLayer.css'
+import dynamic from "next/dynamic"
+import { useReadingProgress } from "@/components/pdf/useReadingProgress"
+import { useBookAnnotations } from "@/components/pdf/useBookAnnotations"
+import PageJump from "@/components/pdf/PageJump"
 import UserProfileModal from "./UserProfileModal"
 import { useStudyRoomSession } from "@/context/StudyRoomContext"
 import { useRouter } from "next/navigation"
+
+const PdfCanvas = dynamic(() => import("@/components/pdf/PdfCanvas"), { ssr: false })
 
 interface UserPresence {
   id: string
@@ -39,16 +42,8 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   const [zenMode, setZenMode] = useState(false)
   const [activeTab, setActiveTab] = useState<"chat" | "library">("library") 
   const [realBooks, setRealBooks] = useState<any[]>([])
+  const [booksLoading, setBooksLoading] = useState(true)
   const [activeBook, setActiveBook] = useState<any | null>(null)
-  const [pdfLoadFailed, setPdfLoadFailed] = useState(false)
-
-  // Client-only setup for pdfjs worker with unpkg fallback
-  useEffect(() => {
-    if (typeof window !== "undefined" && !pdfjs.GlobalWorkerOptions.workerSrc) {
-      pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
-    }
-  }, [])
-
   // Room Conversation ID mapping
   const ROOM_CONV_IDS: Record<string, string> = {
     silent: "00000000-0000-0000-0000-000000000001",
@@ -159,17 +154,18 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   }, [dbMessages])
   
   // PDF Reader States
-  const [numPages, setNumPages] = useState<number | null>(null)
-  const [pageNumber, setPageNumber] = useState(1)
+  const { pageNumber, setPageNumber, numPages, setNumPages, progressStatus } = useReadingProgress(activeBook?.id ?? null, user?.id ?? null)
   const [scale, setScale] = useState(1.0)
   const [pdfBoxWidth, setPdfBoxWidth] = useState<number | null>(null)
   const [rightPanelsWidth, setRightPanelsWidth] = useState(560) // 280px + 280px default
   const isDraggingSplitterRef = useRef(false)
   
   // Annotations
-  const [annotations, setAnnotations] = useState<any[]>([])
+  const { annotations, saveAnnotation, saving, noteStatus } = useBookAnnotations(activeBook?.id ?? null, user?.id ?? null)
   const [selectedText, setSelectedText] = useState("")
   const [noteInput, setNoteInput] = useState("")
+
+  useEffect(() => { setSelectedText("") }, [pageNumber])
 
   const [goal, setGoal] = useState(room.defaultGoal)
   const [isEditingGoal, setIsEditingGoal] = useState(false)
@@ -189,11 +185,12 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   // Fetch real books and categories
   useEffect(() => {
     async function fetchBooks() {
+      setBooksLoading(true)
       const { data: catData } = await supabase.from('categories').select('*')
       
       const { data, error } = await supabase
         .from('books')
-        .select(`*, authors(name)`)
+        .select(`id,title,author,cover_url,description_hindi,language,genre,authors(name)`)
         .limit(500)
         
       if (data) {
@@ -262,6 +259,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
       } else {
         setRealBooks([]);
       }
+      setBooksLoading(false)
     }
     fetchBooks()
   }, [roomId])
@@ -293,7 +291,10 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
       const users: Record<string, UserPresence> = {}
       for (const key in state) {
         // @ts-ignore
-        users[key] = state[key][0] as UserPresence
+        for (const presence of state[key]) {
+          const member = presence as unknown as UserPresence
+          if (member.id) users[member.id] = member
+        }
       }
       setActiveUsers(users)
     })
@@ -313,21 +314,9 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
     })
 
     // Now subscribe
-    ch.subscribe(async (status) => {
-      if (status === "SUBSCRIBED" && isSubscribed) {
-        const { data: { user: currentUser } } = await supabase.auth.getUser()
-        if (currentUser) {
-          setUser(currentUser)
-          const username = currentUser.user_metadata?.username || currentUser.email?.split("@")[0] || "User"
-          await ch.track({
-            id: currentUser.id,
-            username,
-            status: activeBook ? "Reading intensely 📖" : "Studying quietly ✍️",
-            readingBook: activeBook?.title || null,
-            joined_at: new Date().toISOString(),
-          })
-        }
-      }
+    ch.subscribe()
+    supabase.auth.getUser().then(({ data: { user: currentUser } }) => {
+      if (isSubscribed) setUser(currentUser)
     })
 
     setChannel(ch)
@@ -346,36 +335,8 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
     const currentBook = activeBook?.title || null
     updateSessionStatus(currentStatus, currentBook)
 
-    if (channel && user) {
-      try {
-        const username = user.user_metadata?.username || user.email?.split("@")[0] || "User"
-        channel.track({
-          id: user.id,
-          username,
-          status: currentStatus,
-          readingBook: currentBook,
-          joined_at: new Date().toISOString(),
-        }).catch?.(() => {})
-      } catch {}
-    }
-    
-    if (activeBook) {
-      setPageNumber(1)
-      setNumPages(null)
-      setSelectedText("")
-      setNoteInput("")
-      if (user) {
-        // fetch annotations
-        supabase.from("annotations")
-          .select("*")
-          .eq("book_id", activeBook.id)
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false })
-          .then(({ data }) => {
-            if (data) setAnnotations(data)
-          })
-      }
-    }
+    setSelectedText("")
+    setNoteInput("")
   }, [activeBook])
 
   // Auto measure PDF container width to fit 100% of the box
@@ -391,7 +352,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
     const ro = new ResizeObserver(updateWidth);
     ro.observe(pdfContainerRef.current);
     return () => ro.disconnect();
-  }, [activeBook]);
+  }, [activeBook, zenMode]);
 
   // Handle dragging splitter to resize PDF vs right panels
   useEffect(() => {
@@ -459,80 +420,12 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activeBook, pageNumber, numPages]);
 
-  // Apply DOM highlights
-  useEffect(() => {
-    if (!activeBook) return;
-    const applyHighlights = () => {
-      const pageAnnotations = annotations.filter(a => a.page_number === pageNumber);
-      const textLayers = document.querySelectorAll('.react-pdf__Page__textContent');
-      
-      textLayers.forEach(layer => {
-        const spans = layer.querySelectorAll('span');
-        spans.forEach(span => {
-          span.style.borderBottom = '';
-          span.style.backgroundColor = '';
-          
-          const str = span.textContent || "";
-          if (str.trim().length < 2) return;
-          
-          for (const ann of pageAnnotations) {
-            if (!ann.selected_text) continue;
-            const hlText = ann.selected_text.replace(/\\s+/g, '');
-            const spanText = str.replace(/\\s+/g, '');
-            
-            if (hlText.includes(spanText) || spanText.includes(hlText)) {
-              span.style.borderBottom = '3px solid #D97706'; 
-              span.style.backgroundColor = 'rgba(217, 119, 6, 0.15)';
-              break;
-            }
-          }
-        });
-      });
-    };
-    const timeout = setTimeout(applyHighlights, 800);
-    return () => clearTimeout(timeout);
-  }, [annotations, pageNumber, scale, activeBook]);
-
   // Save annotation
   async function handleSaveAnnotation() {
-    if (!activeBook || !user) return;
-    const noteText = noteInput.trim();
-    if (!noteText) {
-      alert("Please type a note first.");
-      return;
-    }
-    const textToSave = selectedText || `Page ${pageNumber} Note`;
-    
-    const tempId = Date.now().toString();
-    const newAnnotation = {
-      id: tempId,
-      user_id: user.id,
-      book_id: activeBook.id,
-      page_number: pageNumber,
-      selected_text: textToSave,
-      note: noteText,
-      created_at: new Date().toISOString()
-    };
-
-    setAnnotations([newAnnotation, ...annotations]);
-    setSelectedText("");
-    setNoteInput("");
-    window.getSelection()?.removeAllRanges();
-
-    try {
-      const { data, error } = await supabase.from("annotations").insert({
-        user_id: user.id,
-        book_id: activeBook.id,
-        page_number: pageNumber,
-        selected_text: textToSave,
-        note: noteText
-      }).select().single();
-      
-      if (data) {
-        setAnnotations(prev => prev.map(a => a.id === tempId ? data : a));
-      }
-    } catch (err) {
-      console.error(err);
+    if (await saveAnnotation(pageNumber, selectedText, noteInput)) {
+      setSelectedText("")
+      setNoteInput("")
+      window.getSelection()?.removeAllRanges()
     }
   }
 
@@ -644,6 +537,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   const activeUserList = Object.values(activeUsers)
 
   function changePage(offset: number) {
+    if (!numPages) return;
     // Preserve current window scroll position so page doesn't jump
     const currentScrollY = typeof window !== "undefined" ? window.scrollY : 0;
     
@@ -724,7 +618,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
 
       {/* Main Grid changes dynamically if reading a book */}
       <div 
-        className={styles.roomGrid} 
+        className={`${styles.roomGrid} ${activeBook ? styles.readingGrid : ""}`}
         style={{ 
           gridTemplateColumns: zenMode 
             ? "1fr" 
@@ -736,57 +630,38 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
       >
         
         {/* IF READING: Show PDF Viewer Area */}
-        {activeBook && !zenMode && (
-          <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-lg)", border: "1px solid var(--color-border)", display: "flex", flexDirection: "column", overflow: "hidden", height: "82vh", minHeight: "600px" }}>
+        {activeBook && (
+          <div className={styles.bookReader} style={{ background: "var(--color-surface)", borderRadius: "var(--radius-lg)", border: "1px solid var(--color-border)", display: "flex", flexDirection: "column", overflow: "hidden", height: "82vh", minHeight: "600px" }}>
              <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid var(--color-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   <h3 style={{ fontSize: "1.1rem", fontWeight: 700 }}>{activeBook.title}</h3>
                   <p style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>By {activeBook.authors?.name || activeBook.author || "Unknown"}</p>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setScale(s => Math.max(0.5, s - 0.2))}>➖</button>
+                  <button className="btn btn-ghost btn-sm" aria-label="Zoom out" onClick={() => setScale(s => Math.max(0.5, s - 0.2))}>➖</button>
                   <span style={{ fontSize: "0.8rem", color: "var(--color-text-secondary)" }}>{Math.round(scale * 100)}%</span>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setScale(s => Math.min(3.0, s + 0.2))}>➕</button>
+                  <button className="btn btn-ghost btn-sm" aria-label="Zoom in" onClick={() => setScale(s => Math.min(3.0, s + 0.2))}>➕</button>
                   <button className="btn btn-primary btn-sm" onClick={() => setActiveBook(null)} style={{ marginLeft: "0.5rem" }}>Close Book</button>
                 </div>
              </div>
              
              {/* Actual PDF Viewer */}
              <div ref={pdfContainerRef} style={{ flex: 1, background: "#e5e5e5", overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", width: "100%", height: "100%", padding: "1rem" }}>
-               {activeBook.pdf_url ? (
+               {activeBook.id ? (
                  <div style={{ margin: "auto 0", boxShadow: "0 8px 32px rgba(0,0,0,0.15)" }}>
-                    <Document
-                      file={(() => {
-                        if (activeBook.pdf_url && activeBook.pdf_url.includes("drive.google.com")) {
-                          const m = activeBook.pdf_url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-                          if (m && m[1]) return `/api/pdf-proxy?id=${m[1]}`;
-                        }
-                        if (activeBook.pdf_url.startsWith("http://") || activeBook.pdf_url.startsWith("https://")) {
-                          if (typeof window !== "undefined" && !activeBook.pdf_url.startsWith(window.location.origin)) {
-                            return `/api/pdf-proxy?url=${encodeURIComponent(activeBook.pdf_url)}`;
-                          }
-                        }
-                        return activeBook.pdf_url;
-                      })()}
+                    <PdfCanvas
+                      bookId={activeBook.id}
+                      watermark={user?.user_metadata?.username || "Member"}
+                      onPageChange={setPageNumber}
+                      pageNumber={pageNumber}
+                      scale={scale}
+                      width={pdfBoxWidth ? Math.min(pdfBoxWidth, 750) : undefined}
+                      highlights={annotations}
                       onLoadSuccess={({ numPages }) => {
                         setNumPages(numPages)
-                        setPdfLoadFailed(false)
+                        setPageNumber(page => Math.max(1, Math.min(page, numPages)))
                       }}
-                      onLoadError={(err) => {
-                        console.warn("PDF render failed in study room:", err)
-                        setPdfLoadFailed(true)
-                      }}
-                      loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book...</div>}
-                     error={<div style={{ padding: "2rem", textAlign: "center", color: "red" }}>Failed to load PDF. Please retry.</div>}
-                   >
-                     <Page 
-                       pageNumber={pageNumber} 
-                       renderTextLayer={true} 
-                       renderAnnotationLayer={true}
-                       scale={scale}
-                       width={pdfBoxWidth ? Math.min(pdfBoxWidth, 750) : undefined}
-                     />
-                   </Document>
+                    />
                  </div>
                ) : (
                   <div style={{ margin: "auto", textAlign: "center", padding: "2rem" }}>
@@ -800,11 +675,11 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
 
              {/* Book Navigation Bar */}
              <div style={{ padding: "0.75rem", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--color-surface)" }}>
-                <button className="btn btn-secondary btn-sm" onClick={() => changePage(-1)} disabled={pageNumber <= 1}>← Prev Page</button>
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--color-text-secondary)" }}>
-                  Page {pageNumber} {numPages ? `/ ${numPages}` : ""}
-                </span>
-                <button className="btn btn-secondary btn-sm" onClick={() => changePage(1)} disabled={numPages ? pageNumber >= numPages : false}>Next Page →</button>
+                <button className="btn btn-secondary btn-sm" onClick={() => changePage(-1)} disabled={!numPages || pageNumber <= 1}>← Prev Page</button>
+                <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--color-text-secondary)" }}>
+                  <PageJump page={pageNumber} total={numPages} onChange={setPageNumber} />
+                </div>
+                <button className="btn btn-secondary btn-sm" onClick={() => changePage(1)} disabled={!numPages || pageNumber >= numPages}>Next Page →</button>
              </div>
           </div>
         )}
@@ -834,7 +709,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
         )}
 
         {/* Focus Timer Area (Shrinks if reading) */}
-        <div className={styles.mainFocusArea} style={{ maxWidth: zenMode ? "800px" : "100%", margin: zenMode ? "0 auto" : "0" }}>
+        <div className={styles.mainFocusArea} style={{ display: zenMode && activeBook ? "none" : undefined, maxWidth: zenMode ? "800px" : "100%", margin: zenMode ? "0 auto" : "0" }}>
           
           {/* Top avatars in Zen Mode */}
           {zenMode && activeUserList.length > 0 && (
@@ -944,12 +819,15 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                   style={{ marginBottom: "0.5rem", minHeight: "55px", fontSize: "0.8rem", padding: "0.5rem" }}
                 />
                 <div style={{ display: "flex", gap: "0.5rem" }}>
-                  <button className="btn btn-primary btn-sm w-full" onClick={handleSaveAnnotation}>Save Note</button>
+                  <button className="btn btn-primary btn-sm w-full" onClick={handleSaveAnnotation} disabled={saving || (!selectedText.trim() && !noteInput.trim())}>{saving ? "Saving…" : selectedText && !noteInput.trim() ? "Save Highlight" : "Save Note"}</button>
                   {selectedText && (
                     <button className="btn btn-ghost btn-sm" onClick={() => setSelectedText("")}>Clear</button>
                   )}
                 </div>
               </div>
+
+              <p role="status" style={{ fontSize: "0.75rem", marginBottom: "0.75rem" }}>{noteStatus}</p>
+              <p style={{ fontSize: "0.7rem", color: "var(--color-text-muted)" }}>{progressStatus}</p>
 
               {/* Saved Annotations List */}
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
@@ -1372,7 +1250,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                   </p>
                 )}
                 <div style={{ display: "flex", flexDirection: "column", gap: "1rem", overflowY: "auto", flex: 1, maxHeight: activeBook ? "50vh" : "600px", paddingRight: "4px" }}>
-                  {recommendedBooks.length === 0 ? (
+                  {booksLoading ? <p role="status">Loading room books…</p> : recommendedBooks.length === 0 ? (
                     <div style={{ textAlign: "center", padding: "2rem 1rem", background: "var(--color-surface-2)", borderRadius: "var(--radius-md)", border: "1px dashed var(--color-border)" }}>
                       <span style={{ fontSize: "2.5rem" }}>📖</span>
                       <p style={{ fontSize: "0.85rem", fontWeight: 600, marginTop: "0.5rem", color: "var(--color-text-primary)" }}>
