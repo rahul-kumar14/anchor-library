@@ -338,12 +338,12 @@ export default function ReaderPage() {
 
         {/* Center - PDF Renderer */}
         <div className={styles.pdfArea} ref={pdfContainerRef}>
-          <div className={styles.pdfWrapper} style={{ width: "100%", height: "100%" }}>
-            {book.pdf_url && book.pdf_url.includes("drive.google.com") ? (
-              <div style={{ width: "100%", height: "100%", minHeight: "calc(100vh - 120px)", position: "relative", overflow: "hidden", borderRadius: "4px" }}>
+          <div className={styles.pdfWrapper} style={{ width: pdfLoadFailed ? "100%" : "auto" }}>
+            {pdfLoadFailed && book.pdf_url && book.pdf_url.includes("drive.google.com") ? (
+              <div style={{ width: "100%", height: "calc(100vh - 140px)", position: "relative", overflow: "hidden", borderRadius: "4px" }}>
                 <iframe
                   src={book.pdf_url.includes("/preview") ? book.pdf_url : book.pdf_url.replace(/\/view(\?.*)?$/, "/preview")}
-                  style={{ width: "100%", height: "100%", minHeight: "calc(100vh - 120px)", border: "none", display: "block" }}
+                  style={{ width: "100%", height: "100%", border: "none", minHeight: "650px", display: "block" }}
                   allow="autoplay"
                   title={book.title}
                 />
@@ -363,9 +363,29 @@ export default function ReaderPage() {
               </div>
             ) : (
               <Document
-                file={book.pdf_url}
-                onLoadSuccess={onDocumentLoadSuccess}
-                loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book...</div>}
+                file={(() => {
+                  if (!book.pdf_url) return null;
+                  if (book.pdf_url.includes("drive.google.com")) {
+                    const m = book.pdf_url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+                    if (m && m[1]) return `/api/pdf-proxy?id=${m[1]}`;
+                  }
+                  if (book.pdf_url.startsWith("http://") || book.pdf_url.startsWith("https://")) {
+                    if (typeof window !== "undefined" && !book.pdf_url.startsWith(window.location.origin)) {
+                      return `/api/pdf-proxy?url=${encodeURIComponent(book.pdf_url)}`;
+                    }
+                  }
+                  return book.pdf_url;
+                })()}
+                onLoadSuccess={(pdf) => {
+                  onDocumentLoadSuccess(pdf);
+                  setPdfLoadFailed(false);
+                }}
+                onLoadError={(err) => {
+                  console.warn("Direct canvas render failed, switching to fallback:", err);
+                  setPdfLoadFailed(true);
+                }}
+                loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book into Canvas Reader...</div>}
+                error={null}
               >
                 <Page 
                   pageNumber={pageNumber} 

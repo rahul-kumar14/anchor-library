@@ -752,9 +752,9 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
              </div>
              
               {/* Actual PDF Viewer */}
-              <div ref={pdfContainerRef} style={{ flex: 1, background: "#f8fafc", overflow: "hidden", display: "flex", flexDirection: "column", width: "100%", height: "100%", padding: "0.5rem" }}>
+              <div ref={pdfContainerRef} style={{ flex: 1, background: "#e5e5e5", overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", width: "100%", height: "100%", padding: "1rem" }}>
                 {activeBook.pdf_url ? (
-                  activeBook.pdf_url.includes("drive.google.com") ? (
+                  pdfLoadFailed && activeBook.pdf_url.includes("drive.google.com") ? (
                     <div style={{ position: "relative", width: "100%", height: "100%", minHeight: "550px", overflow: "hidden", borderRadius: "8px", background: "#ffffff", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}>
                       <iframe
                         src={activeBook.pdf_url.includes("/preview") ? activeBook.pdf_url : activeBook.pdf_url.replace(/\/view(\?.*)?$/, "/preview")}
@@ -762,7 +762,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                         allow="autoplay"
                         title={activeBook.title}
                       />
-                      {/* Invisible Shield over Google Drive pop-out button */}
+                      {/* Shield over Google Drive pop-out button */}
                       <div 
                         style={{
                           position: "absolute",
@@ -779,11 +779,28 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                   ) : (
                     <div style={{ margin: "auto 0", boxShadow: "0 8px 32px rgba(0,0,0,0.15)" }}>
                       <Document
-                        file={activeBook.pdf_url}
+                        file={(() => {
+                          if (activeBook.pdf_url && activeBook.pdf_url.includes("drive.google.com")) {
+                            const m = activeBook.pdf_url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+                            if (m && m[1]) return `/api/pdf-proxy?id=${m[1]}`;
+                          }
+                          if (activeBook.pdf_url.startsWith("http://") || activeBook.pdf_url.startsWith("https://")) {
+                            if (typeof window !== "undefined" && !activeBook.pdf_url.startsWith(window.location.origin)) {
+                              return `/api/pdf-proxy?url=${encodeURIComponent(activeBook.pdf_url)}`;
+                            }
+                          }
+                          return activeBook.pdf_url;
+                        })()}
                         onLoadSuccess={({ numPages }) => {
                           setNumPages(numPages);
+                          setPdfLoadFailed(false);
                         }}
-                        loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book...</div>}
+                        onLoadError={(err) => {
+                          console.warn("Direct canvas render failed in study room, fallback to embed:", err);
+                          setPdfLoadFailed(true);
+                        }}
+                        loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book into Canvas...</div>}
+                        error={null}
                       >
                         <Page 
                           pageNumber={pageNumber} 

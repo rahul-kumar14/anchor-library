@@ -14,10 +14,20 @@ export async function GET(request: NextRequest) {
     : externalUrl!;
 
   try {
-    const upstreamRes = await fetch(targetUrl);
+    const upstreamRes = await fetch(targetUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      },
+    });
 
     if (!upstreamRes.ok) {
-      return new NextResponse(`Failed to fetch from Drive: ${upstreamRes.statusText}`, { status: upstreamRes.status });
+      return new NextResponse(`Failed to fetch upstream PDF: ${upstreamRes.statusText}`, { status: upstreamRes.status });
+    }
+
+    const contentType = upstreamRes.headers.get("content-type") || "";
+    // If Google returned an HTML error page rather than binary stream, report error
+    if (contentType.includes("text/html")) {
+      return new NextResponse("Stream not ready or blocked by Drive permissions", { status: 403 });
     }
 
     const headers = new Headers();
