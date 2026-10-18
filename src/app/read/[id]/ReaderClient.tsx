@@ -340,12 +340,25 @@ export default function ReaderPage() {
         <div className={styles.pdfArea} ref={pdfContainerRef}>
           <div className={styles.pdfWrapper} style={{ width: pdfLoadFailed ? "100%" : "auto" }}>
             {pdfLoadFailed && book.pdf_url && book.pdf_url.includes("drive.google.com") ? (
-              <div style={{ width: "100%", height: "calc(100vh - 140px)", display: "flex", flexDirection: "column" }}>
+              <div style={{ width: "100%", height: "calc(100vh - 140px)", position: "relative", overflow: "hidden", borderRadius: "4px" }}>
                 <iframe
                   src={book.pdf_url.includes("/preview") ? book.pdf_url : book.pdf_url.replace(/\/view(\?.*)?$/, "/preview")}
-                  style={{ width: "100%", height: "100%", border: "none", minHeight: "650px", borderRadius: "4px" }}
+                  style={{ width: "100%", height: "100%", border: "none", minHeight: "650px" }}
                   allow="autoplay"
                   title={book.title}
+                />
+                {/* Shield over Google Drive pop-out */}
+                <div 
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    right: 0,
+                    width: "65px",
+                    height: "60px",
+                    background: "transparent",
+                    zIndex: 20,
+                    cursor: "default"
+                  }}
                 />
               </div>
             ) : (
@@ -371,17 +384,33 @@ export default function ReaderPage() {
                 }}
                 loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book...</div>}
                 error={
-                  <div style={{ padding: "2rem", textAlign: "center" }}>
-                    <p style={{ color: "red", marginBottom: "1rem" }}>Failed to load PDF directly.</p>
-                    {book.pdf_url && book.pdf_url.includes("drive.google.com") && (
+                  book.pdf_url && book.pdf_url.includes("drive.google.com") ? (
+                    <div style={{ position: "relative", width: "100%", height: "70vh", overflow: "hidden", borderRadius: "8px" }}>
                       <iframe
                         src={book.pdf_url.includes("/preview") ? book.pdf_url : book.pdf_url.replace(/\/view(\?.*)?$/, "/preview")}
-                        style={{ width: "100%", height: "70vh", border: "none" }}
+                        style={{ width: "100%", height: "100%", border: "none" }}
                         allow="autoplay"
                         title={book.title}
                       />
-                    )}
-                  </div>
+                      {/* Shield over Google Drive pop-out */}
+                      <div 
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          right: 0,
+                          width: "65px",
+                          height: "60px",
+                          background: "transparent",
+                          zIndex: 20,
+                          cursor: "default"
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div style={{ padding: "2rem", textAlign: "center" }}>
+                      <p style={{ color: "var(--color-text-secondary)" }}>📖 Loading Book...</p>
+                    </div>
+                  )
                 }
               >
                 <Page 

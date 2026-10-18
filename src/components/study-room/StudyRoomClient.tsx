@@ -778,17 +778,33 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                       }}
                       loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book...</div>}
                      error={
-                       <div style={{ padding: "2rem", textAlign: "center" }}>
-                         <p style={{ color: "red", marginBottom: "1rem" }}>Failed to load PDF.</p>
-                         {activeBook.pdf_url.includes("drive.google.com") && (
+                       activeBook.pdf_url.includes("drive.google.com") ? (
+                         <div style={{ position: "relative", width: "100%", height: "70vh", overflow: "hidden", borderRadius: "8px" }}>
                            <iframe
                              src={activeBook.pdf_url.includes("/preview") ? activeBook.pdf_url : activeBook.pdf_url.replace(/\/view(\?.*)?$/, "/preview")}
-                             style={{ width: "100%", height: "70vh", border: "none" }}
+                             style={{ width: "100%", height: "100%", border: "none" }}
                              allow="autoplay"
                              title={activeBook.title}
                            />
-                         )}
-                       </div>
+                           {/* Shield over Google Drive popout icon */}
+                           <div 
+                             style={{
+                               position: "absolute",
+                               top: 0,
+                               right: 0,
+                               width: "65px",
+                               height: "60px",
+                               background: "transparent",
+                               zIndex: 10,
+                               cursor: "default"
+                             }}
+                           />
+                         </div>
+                       ) : (
+                         <div style={{ padding: "2rem", textAlign: "center" }}>
+                           <p style={{ color: "var(--color-text-secondary)" }}>📖 Loading Book...</p>
+                         </div>
+                       )
                      }
                    >
                      <Page 
