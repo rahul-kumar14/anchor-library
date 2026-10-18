@@ -28,11 +28,6 @@ const AMBIENT_SOUNDS = [
 // Dummy fallback removed - books load dynamically from Supabase
 const ROOM_BOOKS: Record<string, { id: string; title: string; author: string; cover: string }[]> = {}
 
-// Initialize pdf.js worker using self-hosted public file
-if (typeof window !== "undefined") {
-  pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-}
-
 export default function StudyRoomClient({ room, roomId }: { room: any; roomId: string }) {
   const router = useRouter()
   const { activeSession, joinSession, leaveSession, updateSessionStatus } = useStudyRoomSession()
@@ -46,6 +41,13 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   const [realBooks, setRealBooks] = useState<any[]>([])
   const [activeBook, setActiveBook] = useState<any | null>(null)
   const [pdfLoadFailed, setPdfLoadFailed] = useState(false)
+
+  // Client-only setup for pdfjs worker with unpkg fallback
+  useEffect(() => {
+    if (typeof window !== "undefined" && !pdfjs.GlobalWorkerOptions.workerSrc) {
+      pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
+    }
+  }, [])
 
   // Room Conversation ID mapping
   const ROOM_CONV_IDS: Record<string, string> = {
@@ -639,21 +641,6 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
     }
   }
 
-  const pdfSource = (() => {
-    if (!activeBook?.pdf_url) return null;
-    let url = activeBook.pdf_url;
-    if (url.includes("drive.google.com")) {
-      const m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-      if (m && m[1]) return `/api/pdf-proxy?id=${m[1]}`;
-    }
-    if (url.startsWith("http://") || url.startsWith("https://")) {
-      if (typeof window !== "undefined" && !url.startsWith(window.location.origin)) {
-        return `/api/pdf-proxy?url=${encodeURIComponent(url)}`;
-      }
-    }
-    return url;
-  })();
-
   const activeUserList = Object.values(activeUsers)
 
   function changePage(offset: number) {
@@ -768,27 +755,50 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
              <div ref={pdfContainerRef} style={{ flex: 1, background: "#e5e5e5", overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", width: "100%", height: "100%", padding: "1rem" }}>
                {activeBook.pdf_url ? (
                  <div style={{ margin: "auto 0", boxShadow: "0 8px 32px rgba(0,0,0,0.15)" }}>
-                     <Document
-                       file={pdfSource}
-                       onLoadSuccess={({ numPages }) => {
-                         setNumPages(numPages)
-                         setPdfLoadFailed(false)
-                       }}
-                       onLoadError={(err) => {
-                         console.warn("PDF render failed in study room:", err)
-                         setPdfLoadFailed(true)
-                       }}
-                       loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book...</div>}
-                       error={<div style={{ padding: "2rem", textAlign: "center", color: "red" }}>Failed to load PDF.</div>}
-                     >
-                       <Page 
-                         pageNumber={pageNumber} 
-                         renderTextLayer={true} 
-                         renderAnnotationLayer={true}
-                         scale={scale}
-                         width={pdfBoxWidth ? Math.min(pdfBoxWidth, 750) : undefined}
-                       />
-                     </Document>
+                    <Document
+                      file={(() => {
+                        if (activeBook.pdf_url && activeBook.pdf_url.includes("drive.google.com")) {
+                          const m = activeBook.pdf_url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+                          if (m && m[1]) return `/api/pdf-proxy?id=${m[1]}`;
+                        }
+                        if (activeBook.pdf_url.startsWith("http://") || activeBook.pdf_url.startsWith("https://")) {
+                          if (typeof window !== "undefined" && !activeBook.pdf_url.startsWith(window.location.origin)) {
+                            return `/api/pdf-proxy?url=${encodeURIComponent(activeBook.pdf_url)}`;
+                          }
+                        }
+                        return activeBook.pdf_url;
+                      })()}
+                      onLoadSuccess={({ numPages }) => {
+                        setNumPages(numPages)
+                        setPdfLoadFailed(false)
+                      }}
+                      onLoadError={(err) => {
+                        console.warn("PDF render failed in study room:", err)
+                        setPdfLoadFailed(true)
+                      }}
+                      loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book...</div>}
+                     error={
+                       <div style={{ padding: "2rem", textAlign: "center" }}>
+                         <p style={{ color: "red", marginBottom: "1rem" }}>Failed to load PDF.</p>
+                         {activeBook.pdf_url.includes("drive.google.com") && (
+                           <iframe
+                             src={activeBook.pdf_url.includes("/preview") ? activeBook.pdf_url : activeBook.pdf_url.replace(/\/view(\?.*)?$/, "/preview")}
+                             style={{ width: "100%", height: "70vh", border: "none" }}
+                             allow="autoplay"
+                             title={activeBook.title}
+                           />
+                         )}
+                       </div>
+                     }
+                   >
+                     <Page 
+                       pageNumber={pageNumber} 
+                       renderTextLayer={true} 
+                       renderAnnotationLayer={true}
+                       scale={scale}
+                       width={pdfBoxWidth ? Math.min(pdfBoxWidth, 750) : undefined}
+                     />
+                   </Document>
                  </div>
                ) : (
                   <div style={{ margin: "auto", textAlign: "center", padding: "2rem" }}>
@@ -1399,11 +1409,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                           <button 
                             className="btn btn-primary btn-sm" 
                             style={{ marginTop: "0.5rem", width: "100%", justifyContent: "center" }}
-                            onClick={() => {
-                              setPdfLoadFailed(false);
-                              setPageNumber(1);
-                              setActiveBook(activeBook?.id === b.id ? null : b);
-                            }}
+                            onClick={() => setActiveBook(activeBook?.id === b.id ? null : b)}
                           >
                             {activeBook?.id === b.id ? "Close" : "Read Now"}
                           </button>
