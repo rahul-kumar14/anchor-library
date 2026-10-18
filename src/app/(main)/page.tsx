@@ -15,7 +15,7 @@ export default async function HomePage() {
       <div className={styles.heroCopy}>
         <p className={styles.eyebrow}><span /> A QUIETER CORNER OF THE INTERNET</p>
         <h1>More reading.<br />Less scrolling.<br /><em>A little company.</em></h1>
-        <p className={styles.intro}>An open book. A focused room. A study partner who gets it.<br />Make space for the ideas you’ve been meaning to get to.</p>
+        <p className={styles.intro}>An open book. A focused room. A study partner who gets it.<br /> Make space for the ideas you’ve been meaning to get to.</p>
         <div className={styles.actions}><Link href="/study-rooms" className={styles.primary}>Find a study room <span>↗</span></Link><Link href="/library" className={styles.secondary}>Explore the shelves →</Link></div>
         <div className={styles.heroNotes}><span>Hindi + English reading</span><span>Notes that stay with you</span><span>No camera required</span></div>
       </div>
