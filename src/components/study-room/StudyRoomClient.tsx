@@ -639,6 +639,21 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
     }
   }
 
+  const pdfSource = (() => {
+    if (!activeBook?.pdf_url) return null;
+    let url = activeBook.pdf_url;
+    if (url.includes("drive.google.com")) {
+      const m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+      if (m && m[1]) return `/api/pdf-proxy?id=${m[1]}`;
+    }
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      if (typeof window !== "undefined" && !url.startsWith(window.location.origin)) {
+        return `/api/pdf-proxy?url=${encodeURIComponent(url)}`;
+      }
+    }
+    return url;
+  })();
+
   const activeUserList = Object.values(activeUsers)
 
   function changePage(offset: number) {
@@ -754,49 +769,26 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                {activeBook.pdf_url ? (
                  <div style={{ margin: "auto 0", boxShadow: "0 8px 32px rgba(0,0,0,0.15)" }}>
                      <Document
-                       file={(() => {
-                         let targetUrl = activeBook.pdf_url;
-                         if (activeBook.pdf_url && activeBook.pdf_url.includes("drive.google.com")) {
-                           const m = activeBook.pdf_url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-                           if (m && m[1]) targetUrl = `/api/pdf-proxy?id=${m[1]}`;
-                         } else if (activeBook.pdf_url.startsWith("http://") || activeBook.pdf_url.startsWith("https://")) {
-                           if (typeof window !== "undefined" && !activeBook.pdf_url.startsWith(window.location.origin)) {
-                             targetUrl = `/api/pdf-proxy?url=${encodeURIComponent(activeBook.pdf_url)}`;
-                           }
-                         }
-                         return { url: targetUrl, withCredentials: false };
-                       })()}
-                      onLoadSuccess={({ numPages }) => {
-                        setNumPages(numPages)
-                        setPdfLoadFailed(false)
-                      }}
-                      onLoadError={(err) => {
-                        console.warn("PDF render failed in study room:", err)
-                        setPdfLoadFailed(true)
-                      }}
-                      loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book...</div>}
-                     error={
-                       <div style={{ padding: "2rem", textAlign: "center" }}>
-                         <p style={{ color: "red", marginBottom: "1rem" }}>Failed to load PDF.</p>
-                         {activeBook.pdf_url.includes("drive.google.com") && (
-                           <iframe
-                             src={activeBook.pdf_url.includes("/preview") ? activeBook.pdf_url : activeBook.pdf_url.replace(/\/view(\?.*)?$/, "/preview")}
-                             style={{ width: "100%", height: "70vh", border: "none" }}
-                             allow="autoplay"
-                             title={activeBook.title}
-                           />
-                         )}
-                       </div>
-                     }
-                   >
-                     <Page 
-                       pageNumber={pageNumber} 
-                       renderTextLayer={true} 
-                       renderAnnotationLayer={true}
-                       scale={scale}
-                       width={pdfBoxWidth ? Math.min(pdfBoxWidth, 750) : undefined}
-                     />
-                   </Document>
+                       file={pdfSource}
+                       onLoadSuccess={({ numPages }) => {
+                         setNumPages(numPages)
+                         setPdfLoadFailed(false)
+                       }}
+                       onLoadError={(err) => {
+                         console.warn("PDF render failed in study room:", err)
+                         setPdfLoadFailed(true)
+                       }}
+                       loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book...</div>}
+                       error={<div style={{ padding: "2rem", textAlign: "center", color: "red" }}>Failed to load PDF.</div>}
+                     >
+                       <Page 
+                         pageNumber={pageNumber} 
+                         renderTextLayer={true} 
+                         renderAnnotationLayer={true}
+                         scale={scale}
+                         width={pdfBoxWidth ? Math.min(pdfBoxWidth, 750) : undefined}
+                       />
+                     </Document>
                  </div>
                ) : (
                   <div style={{ margin: "auto", textAlign: "center", padding: "2rem" }}>

@@ -301,6 +301,21 @@ export default function ReaderPage() {
     return <div className={styles.readerContainer} style={{ justifyContent: "center", alignItems: "center" }}>Book PDF not available.</div>
   }
 
+  const pdfSource = (() => {
+    if (!book?.pdf_url) return null;
+    let url = book.pdf_url;
+    if (url.includes("drive.google.com")) {
+      const m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+      if (m && m[1]) return `/api/pdf-proxy?id=${m[1]}`;
+    }
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      if (typeof window !== "undefined" && !url.startsWith(window.location.origin)) {
+        return `/api/pdf-proxy?url=${encodeURIComponent(url)}`;
+      }
+    }
+    return url;
+  })();
+
   const progressPercent = numPages ? Math.round((pageNumber / numPages) * 100) : 0;
 
   return (
@@ -350,46 +365,22 @@ export default function ReaderPage() {
               </div>
             ) : (
               <Document
-                file={(() => {
-                  if (!book.pdf_url) return null;
-                  let targetUrl = book.pdf_url;
-                  if (book.pdf_url.includes("drive.google.com")) {
-                    const m = book.pdf_url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-                    if (m && m[1]) targetUrl = `/api/pdf-proxy?id=${m[1]}`;
-                  } else if (book.pdf_url.startsWith("http://") || book.pdf_url.startsWith("https://")) {
-                    if (typeof window !== "undefined" && !book.pdf_url.startsWith(window.location.origin)) {
-                      targetUrl = `/api/pdf-proxy?url=${encodeURIComponent(book.pdf_url)}`;
-                    }
-                  }
-                  return { url: targetUrl, withCredentials: false };
-                })()}
+                file={pdfSource}
                 onLoadSuccess={onDocumentLoadSuccess}
                 onLoadError={(err) => {
                   console.warn("Direct PDF render failed, switching to Google Drive embed view:", err);
                   setPdfLoadFailed(true);
                 }}
                 loading={<div style={{ padding: "2rem", color: "var(--color-text-secondary)" }}>📖 Loading Book...</div>}
-                error={
-                  <div style={{ padding: "2rem", textAlign: "center" }}>
-                    <p style={{ color: "red", marginBottom: "1rem" }}>Failed to load PDF directly.</p>
-                    {book.pdf_url && book.pdf_url.includes("drive.google.com") && (
-                      <iframe
-                        src={book.pdf_url.includes("/preview") ? book.pdf_url : book.pdf_url.replace(/\/view(\?.*)?$/, "/preview")}
-                        style={{ width: "100%", height: "70vh", border: "none" }}
-                        allow="autoplay"
-                        title={book.title}
-                      />
-                    )}
-                  </div>
-                }
+                error={<div style={{ padding: "2rem", textAlign: "center", color: "red" }}>Failed to load PDF.</div>}
               >
-                <Page 
-                  pageNumber={pageNumber} 
-                  renderTextLayer={true} 
-                  renderAnnotationLayer={true}
+                <Page
+                  pageNumber={pageNumber}
                   scale={scale}
                   width={containerWidth ? Math.min(containerWidth, 800) : undefined}
-                  className={styles.pdfPageContent}
+                  renderTextLayer={true}
+                  renderAnnotationLayer={true}
+                  className={styles.pdfPage}
                 />
               </Document>
             )}
