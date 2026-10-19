@@ -12,7 +12,7 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id,username,full_name,avatar_url,bio,is_admin,created_at")
+    .select("id,username,full_name,avatar_url,bio,is_admin,created_at,reading_streak")
     .eq("id", user.id)
     .single()
 
@@ -24,17 +24,24 @@ export default async function DashboardPage() {
     .order("last_read_at", { ascending: false })
     .limit(5)
 
-  const { data: favorites, count: favoriteCount } = await supabase
-    .from("favorites")
-    .select("*, books(id, title, cover_url, authors(name))", { count: "exact" })
-    .eq("user_id", user.id)
-    .limit(6)
-
   const { data: achievements } = await supabase
     .from("achievements")
     .select("*")
     .eq("user_id", user.id)
     .limit(6)
+
+  const { count: completedCount } = await supabase
+    .from("reading_progress")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("is_completed", true)
+
+  const { data: activityDays } = await supabase
+    .from("reading_activity_days")
+    .select("activity_date")
+    .eq("user_id", user.id)
+    .gte("activity_date", dateKey(daysAgo(365)))
+    .order("activity_date", { ascending: true })
 
   const { data: notifications } = await supabase
     .from("notifications")
@@ -44,6 +51,14 @@ export default async function DashboardPage() {
     .limit(5)
 
   const displayName = profile?.full_name || profile?.username || user.email?.split("@")[0]
+  const activeBook = readingProgress?.[0]
+  const activeBookPercent = activeBook ? Math.round((activeBook.current_page / (activeBook.total_pages || 1)) * 100) : 0
+  const activeDates = new Set((activityDays ?? []).map((day: { activity_date: string }) => day.activity_date))
+  const streak = activeDates.size ? calculateStreak(activeDates) : profile?.reading_streak ?? 0
+  const week = Array.from({ length: 7 }, (_, index) => daysAgo(6 - index))
+  const weekActivity = week.map(day => ({ date: day, active: activeDates.has(dateKey(day)) }))
+  const weeklySessions = weekActivity.filter(day => day.active).length
+  const nextAchievement = getNextAchievement({ streak, readingBooks: readingCount ?? 0, completedBooks: completedCount ?? 0, achievementCount: achievements?.length ?? 0 })
 
   return (
     <div className={styles.page}>
@@ -66,13 +81,32 @@ export default async function DashboardPage() {
           </Link>
         </div>
 
+        <section className={styles.ritualGrid} aria-label="Your reading ritual">
+          <div className={styles.todayCard}>
+            <div className={styles.todayTopline}><span className={styles.kicker}>YOUR READING RITUAL</span><span className={styles.streakPill}>🔥 {streak} day{streak === 1 ? "" : "s"}</span></div>
+            <h2>{activeBook ? "Pick up your next chapter." : "Your next chapter starts small."}</h2>
+            <p>{activeBook ? <><strong>{activeBook.books?.title}</strong> is waiting at {activeBookPercent}%.</> : "Choose one book and make fifteen quiet minutes count."}</p>
+            <div className={styles.ritualActions}>
+              <Link href={activeBook ? `/read/${activeBook.book_id}` : "/library"} className="btn btn-primary">{activeBook ? "Resume reading →" : "Choose a book →"}</Link>
+              <Link href="/study-rooms/pomodoro?minutes=25" className="btn btn-secondary">Start 25 min focus</Link>
+            </div>
+            <p className={styles.ritualHint}>One reading update or focused session keeps your ritual alive.</p>
+          </div>
+          <div className={styles.weekCard}>
+            <div className={styles.cardEyebrow}>THIS WEEK</div>
+            <div className={styles.weekDays}>{weekActivity.map(({ date, active }) => <div key={date.toISOString()} className={styles.day}><span>{date.toLocaleDateString("en-US", { weekday: "narrow" })}</span><i className={active ? styles.dayActive : undefined} aria-label={active ? "Reading activity" : "No reading activity"} /></div>)}</div>
+            <p><strong>{weeklySessions}</strong> reading day{weeklySessions === 1 ? "" : "s"} this week</p>
+            <span className={styles.weekNote}>{weeklySessions ? "Small, consistent sessions add up." : "Your first session starts the chain."}</span>
+          </div>
+        </section>
+
         {/* Quick Stats */}
         <div className={styles.statsGrid}>
           {[
-            { icon: "📚", label: "Books Reading", value: readingCount ?? 0, color: "var(--color-primary)" },
-            { icon: "❤️", label: "Favorites", value: favoriteCount ?? 0, color: "var(--color-danger)" },
+            { icon: "🔥", label: "Reading Streak", value: `${streak}d`, color: "var(--color-primary)" },
+            { icon: "📚", label: "Books Reading", value: readingCount ?? 0, color: "var(--color-secondary)" },
+            { icon: "📖", label: "Books Finished", value: completedCount ?? 0, color: "var(--color-secondary)" },
             { icon: "🏆", label: "Achievements", value: achievements?.length ?? 0, color: "var(--color-accent)" },
-            { icon: "🔔", label: "Notifications", value: notifications?.length ?? 0, color: "var(--color-secondary)" },
           ].map((s, i) => (
             <div key={i} className={`${styles.statCard} card`}>
               <div className={styles.statIcon} style={{ color: s.color }}>{s.icon}</div>
@@ -131,6 +165,11 @@ export default async function DashboardPage() {
               <div className={styles.sectionHeader}>
                 <h2 className={styles.sectionTitle}>🏆 Achievements</h2>
               </div>
+              <div className={styles.nextAchievement}>
+                <div className={styles.achievementIcon}>{nextAchievement.icon}</div>
+                <div className={styles.achievementCopy}><span>UP NEXT</span><strong>{nextAchievement.title}</strong><p>{nextAchievement.description}</p></div>
+                <div className={styles.achievementProgress}><div><span>{nextAchievement.current}</span> / {nextAchievement.target}</div><div className={styles.progressBar}><div className={styles.progressFill} style={{ width: `${Math.min(100, nextAchievement.current / nextAchievement.target * 100)}%` }} /></div></div>
+              </div>
               {achievements && achievements.length > 0 ? (
                 <div className={styles.achievementsGrid}>
                   {achievements.map((a: any) => (
@@ -176,4 +215,14 @@ function getGreeting() {
   if (h < 12) return "morning"
   if (h < 17) return "afternoon"
   return "evening"
+}
+
+function daysAgo(days: number) { const date = new Date(); date.setHours(0, 0, 0, 0); date.setDate(date.getDate() - days); return date }
+function dateKey(date: Date) { return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-") }
+function calculateStreak(activeDates: Set<string>) { let streak = 0; for (let offset = 0; offset < 366; offset += 1) { if (!activeDates.has(dateKey(daysAgo(offset)))) break; streak += 1 }; return streak }
+function getNextAchievement({ streak, readingBooks, completedBooks, achievementCount }: { streak: number, readingBooks: number, completedBooks: number, achievementCount: number }) {
+  if (!achievementCount && readingBooks > 0) return { icon: "🧭", title: "First Anchor", description: "Complete your first focused reading session.", current: 0, target: 1 }
+  if (streak < 7) return { icon: "🔥", title: "Seven-day rhythm", description: "Read on seven different days to make the habit feel like yours.", current: streak, target: 7 }
+  if (completedBooks < 3) return { icon: "📚", title: "Shelf builder", description: "Finish three books and give your shelf a story.", current: completedBooks, target: 3 }
+  return { icon: "✍️", title: "Reading regular", description: "Keep returning to the ideas worth holding on to.", current: readingBooks, target: Math.max(5, readingBooks + 1) }
 }

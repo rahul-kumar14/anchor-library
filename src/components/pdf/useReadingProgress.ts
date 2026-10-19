@@ -52,6 +52,9 @@ export function useReadingProgress(bookId: string | number | null, userId: strin
       const { error } = data
         ? await supabase.from("reading_progress").update(payload).eq("id", data.id).eq("user_id", userId)
         : await supabase.from("reading_progress").insert(payload)
+      if (!error) await supabase.from("reading_activity_days").upsert({
+        user_id: userId, activity_date: new Date().toISOString().slice(0, 10), last_read_at: new Date().toISOString(),
+      }, { onConflict: "user_id,activity_date" })
       if (!cancelled) setProgressStatus(error ? "Progress could not be saved" : "Progress saved")
     }, 700)
     return () => { cancelled = true; clearTimeout(timeout) }
