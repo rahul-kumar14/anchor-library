@@ -33,6 +33,12 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   const [generalBookSuggestions, setGeneralBookSuggestions] = useState(false)
   const [bookProgress, setBookProgress] = useState<Record<string, { percent: number; lastRead: string }>>({})
   const [activeBook, setActiveBook] = useState<any | null>(null)
+
+  // A book is the focus surface: remove the surrounding product chrome until it is closed.
+  useEffect(() => {
+    document.body.classList.toggle("readerFocusMode", Boolean(activeBook))
+    return () => document.body.classList.remove("readerFocusMode")
+  }, [activeBook])
   // Room Conversation ID mapping
   const ROOM_CONV_IDS: Record<string, string> = {
     silent: "00000000-0000-0000-0000-000000000001",
@@ -645,7 +651,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
 
   return (
     <div 
-      className={styles.roomContainer} 
+      className={`${styles.roomContainer} ${activeBook ? styles.focusedRoom : ""}`}
       style={zenMode ? {
         position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
         zIndex: 9999, background: "#0a0a0a", overflowY: "auto", padding: "2rem"
@@ -658,8 +664,14 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
       }}
     >
       <div className={styles.libraryBackdrop} aria-hidden="true"><span>ANCHOR LIBRARY</span></div>
+      {activeBook && (
+        <div className={styles.focusBar}>
+          <div><button type="button" onClick={() => setActiveBook(null)} aria-label="Close book">←</button><strong>{room.name}</strong></div>
+          <div><span className={styles.focusTimer}>◷ {formatTime(bookReadingSeconds)} read</span><span className={styles.focusLive}><i /> {activeUserList.length} studying</span><button type="button" onClick={() => { leaveSession(); router.push("/study-rooms") }}>Leave</button></div>
+        </div>
+      )}
       {/* Top Banner (Hidden in Zen Mode) */}
-      {!zenMode && (
+      {!zenMode && !activeBook && (
         <div className={styles.roomHeader} style={{ borderColor: `${room.color}33`, marginBottom: activeBook ? "1rem" : undefined, padding: activeBook ? "0.75rem 1.25rem" : undefined }}>
           <div className={styles.roomInfo}>
             <button
@@ -719,7 +731,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
         
         {/* IF READING: Show PDF Viewer Area */}
         {activeBook && (
-          <div className={styles.bookReader} style={{ background: "var(--color-surface)", borderRadius: "var(--radius-lg)", border: "1px solid var(--color-border)", display: "flex", flexDirection: "column", overflow: "hidden", height: "calc(100vh - 210px)", minHeight: "520px" }}>
+          <div className={styles.bookReader} style={{ background: "var(--color-surface)", borderRadius: "var(--radius-lg)", border: "1px solid var(--color-border)", display: "flex", flexDirection: "column", overflow: "hidden", height: "calc(100vh - 92px)", minHeight: "620px" }}>
              <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid var(--color-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   <h3 style={{ fontSize: "1.1rem", fontWeight: 700 }}>{activeBook.title}</h3>
