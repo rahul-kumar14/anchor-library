@@ -20,7 +20,7 @@ type Props = {
   scale: number
   width?: number
   pageClassName?: string
-  highlights: { page_number: number; selected_text?: string }[]
+  highlights: { page_number: number; selected_text?: string; color?: string | null }[]
   onLoadSuccess: (pdf: { numPages: number }) => void
   onPageChange: (page: number) => void
 }
@@ -43,12 +43,14 @@ function PdfCanvasSource({ bookId, watermark, pageNumber, scale, width, pageClas
 
   const applyHighlights = useCallback(() => {
     const quotes = highlights.filter(a => a.page_number === pageNumber && a.selected_text)
-      .map(a => a.selected_text!.replace(/\s+/g, ""))
+      .map(a => ({ quote: a.selected_text!.replace(/\s+/g, ""), color: a.color || "amber" }))
     container.current?.querySelectorAll<HTMLSpanElement>(".react-pdf__Page__textContent span").forEach(span => {
       const text = (span.textContent || "").replace(/\s+/g, "")
-      const highlighted = text.length >= 2 && quotes.some(quote => quote.includes(text) || text.includes(quote))
-      span.style.backgroundColor = highlighted ? "rgba(217, 119, 6, 0.2)" : ""
-      span.style.borderBottom = highlighted ? "3px solid #d97706" : ""
+      const highlight = text.length >= 2 ? quotes.find(item => item.quote.includes(text) || text.includes(item.quote)) : undefined
+      const colors: Record<string, [string, string]> = { amber: ["rgba(245, 158, 11, 0.30)", "#d97706"], blue: ["rgba(96, 165, 250, 0.32)", "#2563eb"], pink: ["rgba(244, 114, 182, 0.28)", "#db2777"], green: ["rgba(74, 222, 128, 0.28)", "#16a34a"] }
+      const color = highlight ? colors[highlight.color] || colors.amber : undefined
+      span.style.backgroundColor = color?.[0] || ""
+      span.style.borderBottom = color ? `3px solid ${color[1]}` : ""
     })
   }, [highlights, pageNumber])
 

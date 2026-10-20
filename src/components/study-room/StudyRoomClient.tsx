@@ -152,9 +152,13 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   const isDraggingSplitterRef = useRef(false)
   
   // Annotations
-  const { annotations, saveAnnotation, saving, noteStatus } = useBookAnnotations(activeBook?.id ?? null, user?.id ?? null)
+  const { annotations, saveAnnotation, removeAnnotation, saving, noteStatus } = useBookAnnotations(activeBook?.id ?? null, user?.id ?? null)
   const [selectedText, setSelectedText] = useState("")
   const [noteInput, setNoteInput] = useState("")
+  const [selectionMenu, setSelectionMenu] = useState<{ top: number; left: number } | null>(null)
+  const [noteComposerOpen, setNoteComposerOpen] = useState(false)
+  const [showNotes, setShowNotes] = useState(false)
+  const [bookReadingSeconds, setBookReadingSeconds] = useState(0)
 
   useEffect(() => { setSelectedText("") }, [pageNumber])
 
@@ -299,6 +303,10 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
 
     setSelectedText("")
     setNoteInput("")
+    setSelectionMenu(null)
+    setNoteComposerOpen(false)
+    setShowNotes(false)
+    if (activeBook) setActiveTab("chat")
     if (activeBook) window.scrollTo({ top: 0, behavior: "instant" })
   }, [activeBook])
 
@@ -356,7 +364,10 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
       const container = pdfContainerRef.current;
 
       if (container && anchorNode && focusNode && container.contains(anchorNode) && container.contains(focusNode)) {
-        setSelectedText(text);
+        const range = selection.getRangeAt(0)
+        const rect = range.getBoundingClientRect()
+        setSelectedText(text)
+        setSelectionMenu({ top: Math.max(12, rect.top - 54), left: Math.min(window.innerWidth - 190, Math.max(12, rect.left + rect.width / 2 - 90)) })
       }
     };
     document.addEventListener("selectionchange", handleSelectionChange);
@@ -388,9 +399,61 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
     if (await saveAnnotation(pageNumber, selectedText, noteInput)) {
       setSelectedText("")
       setNoteInput("")
+      setSelectionMenu(null)
+      setNoteComposerOpen(false)
       window.getSelection()?.removeAllRanges()
     }
   }
+
+  async function saveHighlight(color: "amber" | "blue" | "pink" | "green") {
+    if (await saveAnnotation(pageNumber, selectedText, "", color)) {
+      setSelectedText("")
+      setSelectionMenu(null)
+      window.getSelection()?.removeAllRanges()
+    }
+  }
+
+  async function clearOrRemoveSelection() {
+    const existing = annotations.find(annotation => annotation.page_number === pageNumber && annotation.selected_text === selectedText)
+    if (existing) await removeAnnotation(existing.id)
+    setSelectedText("")
+    setSelectionMenu(null)
+    setNoteComposerOpen(false)
+    window.getSelection()?.removeAllRanges()
+  }
+
+  // Book time is deliberately elapsed time, not a Pomodoro countdown. It only
+  // advances while the reader tab is visible and resumes from the saved total.
+  useEffect(() => {
+    if (!activeBook?.id || !user?.id) { setBookReadingSeconds(0); return }
+    let cancelled = false
+    let total = 0
+    let lastTick = Date.now()
+    let lastSaved = 0
+    const bookId = activeBook.id
+    const save = async () => {
+      if (cancelled || total === lastSaved) return
+      lastSaved = total
+      await createClient().from("book_reading_time").upsert({ user_id: user.id, book_id: bookId, total_seconds: total, updated_at: new Date().toISOString() }, { onConflict: "user_id,book_id" })
+    }
+    createClient().from("book_reading_time").select("total_seconds").eq("user_id", user.id).eq("book_id", bookId).maybeSingle().then(({ data }) => {
+      if (cancelled) return
+      total = data?.total_seconds || 0
+      lastSaved = total
+      lastTick = Date.now()
+      setBookReadingSeconds(total)
+    })
+    const timer = window.setInterval(() => {
+      const now = Date.now()
+      const elapsed = Math.floor((now - lastTick) / 1000)
+      lastTick += elapsed * 1000
+      if (!elapsed || document.visibilityState !== "visible") return
+      total += elapsed
+      setBookReadingSeconds(total)
+      if (total - lastSaved >= 30) void save()
+    }, 1000)
+    return () => { window.clearInterval(timer); void save(); cancelled = true }
+  }, [activeBook?.id, user?.id])
 
   // Measure actual elapsed time so throttled background tabs do not lose time.
   useEffect(() => {
@@ -585,7 +648,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
           gridTemplateColumns: zenMode 
             ? "1fr" 
             : activeBook 
-              ? `minmax(0, 1fr) 10px minmax(200px, ${Math.round(rightPanelsWidth / 2)}px) minmax(200px, ${Math.round(rightPanelsWidth / 2)}px)` 
+              ? "minmax(0, 1fr) minmax(300px, 360px)"
               : "1fr 380px", 
           gap: activeBook ? "0.75rem" : undefined 
         }}
@@ -600,12 +663,34 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                   <p style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>By {activeBook.authors?.name || activeBook.author || "Unknown"}</p>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                  <span className={styles.readingTime}>◷ {formatTime(bookReadingSeconds)} read</span>
                   <button className="btn btn-ghost btn-sm" aria-label="Zoom out" onClick={() => setScale(s => Math.max(0.5, s - 0.2))}>➖</button>
                   <span style={{ fontSize: "0.8rem", color: "var(--color-text-secondary)" }}>{Math.round(scale * 100)}%</span>
                   <button className="btn btn-ghost btn-sm" aria-label="Zoom in" onClick={() => setScale(s => Math.min(3.0, s + 0.2))}>➕</button>
-                  <button className="btn btn-primary btn-sm" onClick={() => setActiveBook(null)} style={{ marginLeft: "0.5rem" }}>Close Book</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setShowNotes(value => !value)}>{showNotes ? "Hide notes" : `Notes (${annotations.length})`}</button>
+                  <button className="btn btn-primary btn-sm" onClick={() => setActiveBook(null)} style={{ marginLeft: "0.25rem" }}>Close Book</button>
                 </div>
              </div>
+
+             {selectionMenu && (
+               <div className={styles.selectionMenu} style={{ top: selectionMenu.top, left: selectionMenu.left }} role="toolbar" aria-label="Selected text actions">
+                 <button type="button" onClick={() => saveHighlight("amber")} title="Amber highlight" className={styles.highlightAmber}>●</button>
+                 <button type="button" onClick={() => saveHighlight("blue")} title="Blue highlight" className={styles.highlightBlue}>●</button>
+                 <button type="button" onClick={() => saveHighlight("pink")} title="Pink highlight" className={styles.highlightPink}>●</button>
+                 <button type="button" onClick={() => saveHighlight("green")} title="Green highlight" className={styles.highlightGreen}>●</button>
+                 <button type="button" className={styles.selectionAction} onClick={() => setNoteComposerOpen(value => !value)}>Add note</button>
+                 <button type="button" className={styles.selectionAction} onClick={clearOrRemoveSelection}>Remove</button>
+                 {noteComposerOpen && <div className={styles.notePopover}>
+                   <textarea autoFocus value={noteInput} onChange={event => setNoteInput(event.target.value)} placeholder="What do you want to remember?" />
+                   <button type="button" className="btn btn-primary btn-sm" onClick={handleSaveAnnotation} disabled={saving || !noteInput.trim()}>{saving ? "Saving…" : "Save note"}</button>
+                 </div>}
+               </div>
+             )}
+
+             {showNotes && <aside className={styles.notesDrawer} aria-label="Saved notes">
+               <div><strong>Notes &amp; highlights</strong><button type="button" onClick={() => setShowNotes(false)}>✕</button></div>
+               {annotations.length ? annotations.map(annotation => <button type="button" key={annotation.id} onClick={() => { setPageNumber(annotation.page_number); setShowNotes(false) }}><span>Page {annotation.page_number}</span><em>{annotation.selected_text}</em>{annotation.note && <b>{annotation.note}</b>}</button>) : <p>No saved notes yet.</p>}
+             </aside>}
              
              {/* Actual PDF Viewer */}
              <div ref={pdfContainerRef} style={{ flex: 1, background: "#e5e5e5", overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", width: "100%", height: "100%", padding: "1rem" }}>
@@ -646,32 +731,8 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
           </div>
         )}
 
-        {/* Draggable Divider Bar */}
-        {activeBook && !zenMode && (
-          <div
-            style={{
-              width: "10px",
-              cursor: "col-resize",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              userSelect: "none",
-              margin: "0 2px"
-            }}
-            title="Drag left/right to resize book vs side panels"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              isDraggingSplitterRef.current = true;
-              document.body.style.cursor = "col-resize";
-              document.body.style.userSelect = "none";
-            }}
-          >
-            <div style={{ width: "4px", height: "48px", borderRadius: "2px", background: "var(--color-border)" }} />
-          </div>
-        )}
-
         {/* Focus Timer Area (Shrinks if reading) */}
-        <div className={styles.mainFocusArea} style={{ display: zenMode && activeBook ? "none" : undefined, maxWidth: zenMode ? "800px" : "100%", margin: zenMode ? "0 auto" : "0" }}>
+        <div className={styles.mainFocusArea} style={{ display: activeBook || (zenMode && activeBook) ? "none" : undefined, maxWidth: zenMode ? "800px" : "100%", margin: zenMode ? "0 auto" : "0" }}>
           
           {/* Top avatars in Zen Mode */}
           {zenMode && activeUserList.length > 0 && (
@@ -751,9 +812,9 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
             </div>
           </div>
 
-          {/* NOVEL FEATURE: NOTES SYSTEM BELOW TIMER */}
-          {activeBook && !zenMode && (
-            <div className={styles.sidebarBox} style={{ flex: 1, padding: "1rem", overflowY: "auto", maxHeight: "400px" }}>
+          {/* Notes are intentionally not rendered while reading. They open from the book header. */}
+          {false && activeBook && !zenMode && (
+            <div className={styles.sidebarBox}>
               <h3 className={styles.boxTitle} style={{ fontSize: "0.9rem", color: "var(--color-primary-dark)", display: "flex", justifyContent: "space-between" }}>
                 <span>📝 Notes & Highlights</span>
               </h3>
@@ -864,13 +925,13 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
               >
                 💬 Chat
               </button>
-              <button 
+              {!activeBook && <button
                 className={`btn btn-sm ${activeTab === 'library' ? 'btn-primary' : 'btn-secondary'}`}
                 style={{ flex: 1 }}
                 onClick={() => setActiveTab('library')}
               >
                 📚 Books
-              </button>
+              </button>}
             </div>
 
             {activeTab === 'chat' ? (
