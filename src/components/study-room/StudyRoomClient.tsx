@@ -159,6 +159,9 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   const [noteComposerOpen, setNoteComposerOpen] = useState(false)
   const [showNotes, setShowNotes] = useState(false)
   const [bookReadingSeconds, setBookReadingSeconds] = useState(0)
+  const [rewardPoints, setRewardPoints] = useState(0)
+  const [rewardPopup, setRewardPopup] = useState<{ section: number; points: number; complete: boolean } | null>(null)
+  const rewardedSectionsRef = useRef(new Set<string>())
 
   useEffect(() => { setSelectedText("") }, [pageNumber])
 
@@ -309,6 +312,43 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
     if (activeBook) setActiveTab("chat")
     if (activeBook) window.scrollTo({ top: 0, behavior: "instant" })
   }, [activeBook])
+
+  useEffect(() => { rewardedSectionsRef.current = new Set(); setRewardPopup(null) }, [activeBook?.id])
+
+  useEffect(() => {
+    if (!user?.id) return
+    createClient().from("reader_rewards").select("points").eq("user_id", user.id).then(({ data }) => {
+      setRewardPoints((data || []).reduce((total, reward: { points: number }) => total + reward.points, 0))
+    })
+  }, [user?.id])
+
+  useEffect(() => {
+    if (!activeBook?.id || !user?.id || !numPages) return
+    const sectionSize = Math.ceil(numPages / 5)
+    const completeSections = Math.min(5, Math.floor(pageNumber / sectionSize))
+    const nextSection = completeSections
+    if (!nextSection) return
+    const key = `${activeBook.id}:${nextSection}`
+    if (rewardedSectionsRef.current.has(key)) return
+    rewardedSectionsRef.current.add(key)
+    const points = 20
+    void createClient().from("reader_rewards").insert({ user_id: user.id, book_id: activeBook.id, section_number: nextSection, target_pages: Math.min(numPages, nextSection * sectionSize), points }).then(({ error }) => {
+      if (!error) setRewardPoints(total => total + points)
+      setRewardPopup({ section: nextSection, points, complete: false })
+    })
+  }, [activeBook?.id, user?.id, pageNumber, numPages])
+
+  useEffect(() => {
+    if (!activeBook?.id || !user?.id || !numPages || pageNumber < numPages) return
+    const key = `${activeBook.id}:complete`
+    if (rewardedSectionsRef.current.has(key)) return
+    rewardedSectionsRef.current.add(key)
+    const points = 100
+    void createClient().from("reader_rewards").insert({ user_id: user.id, book_id: activeBook.id, section_number: 6, target_pages: numPages, points }).then(({ error }) => {
+      if (!error) setRewardPoints(total => total + points)
+      window.setTimeout(() => setRewardPopup({ section: 5, points, complete: true }), 350)
+    })
+  }, [activeBook?.id, user?.id, pageNumber, numPages])
 
   // Auto measure PDF container width to fit 100% of the box
   useEffect(() => {
@@ -595,6 +635,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
         transition: "max-width 0.3s ease"
       }}
     >
+      <div className={styles.libraryBackdrop} aria-hidden="true"><span>ANCHOR LIBRARY</span></div>
       {/* Top Banner (Hidden in Zen Mode) */}
       {!zenMode && (
         <div className={styles.roomHeader} style={{ borderColor: `${room.color}33`, marginBottom: activeBook ? "1rem" : undefined, padding: activeBook ? "0.75rem 1.25rem" : undefined }}>
@@ -663,6 +704,13 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                   <p style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>By {activeBook.authors?.name || activeBook.author || "Unknown"}</p>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                  <div className={styles.readerQuest}>
+                    <span>Reading quest</span>
+                    <strong>Section {numPages ? Math.min(5, Math.floor((pageNumber - 1) / Math.ceil(numPages / 5)) + 1) : 1} of 5</strong>
+                    <div><i style={{ width: `${numPages ? Math.min(100, Math.max(0, ((pageNumber - 1) % Math.ceil(numPages / 5) + 1) / Math.min(Math.ceil(numPages / 5), numPages - Math.floor((pageNumber - 1) / Math.ceil(numPages / 5)) * Math.ceil(numPages / 5)) * 100)) : 0}%` }} /></div>
+                    <small>{numPages ? `${Math.ceil(numPages / 5)} pages per section · +20 pts` : "Loading pages…"}</small>
+                  </div>
+                  <span className={styles.rewardPoints}>✦ {rewardPoints} pts</span>
                   <span className={styles.readingTime}>◷ {formatTime(bookReadingSeconds)} read</span>
                   <button className="btn btn-ghost btn-sm" aria-label="Zoom out" onClick={() => setScale(s => Math.max(0.5, s - 0.2))}>➖</button>
                   <span style={{ fontSize: "0.8rem", color: "var(--color-text-secondary)" }}>{Math.round(scale * 100)}%</span>
@@ -691,6 +739,12 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                <div><strong>Notes &amp; highlights</strong><button type="button" onClick={() => setShowNotes(false)}>✕</button></div>
                {annotations.length ? annotations.map(annotation => <button type="button" key={annotation.id} onClick={() => { setPageNumber(annotation.page_number); setShowNotes(false) }}><span>Page {annotation.page_number}</span><em>{annotation.selected_text}</em>{annotation.note && <b>{annotation.note}</b>}</button>) : <p>No saved notes yet.</p>}
              </aside>}
+
+             {rewardPopup && <div className={`${styles.rewardPopup} ${rewardPopup.complete ? styles.completionPopup : ""}`} role="status">
+               <button type="button" onClick={() => setRewardPopup(null)} aria-label="Close celebration">✕</button>
+               <div className={styles.fireworks} aria-hidden="true">✦ ✧ ✦ ✧ ✦</div>
+               <span>{rewardPopup.complete ? "🎁" : "✦"}</span><strong>{rewardPopup.complete ? "Book complete!" : `Section ${rewardPopup.section} complete!`}</strong><p>{rewardPopup.complete ? "Every finished book becomes a part of you." : "A little more reading. A little more momentum."}</p><b>+{rewardPopup.points} points</b>
+             </div>}
              
              {/* Actual PDF Viewer */}
              <div ref={pdfContainerRef} style={{ flex: 1, background: "#e5e5e5", overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", width: "100%", height: "100%", padding: "1rem" }}>
