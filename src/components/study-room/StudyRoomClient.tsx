@@ -31,6 +31,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   const [realBooks, setRealBooks] = useState<any[]>([])
   const [booksLoading, setBooksLoading] = useState(true)
   const [generalBookSuggestions, setGeneralBookSuggestions] = useState(false)
+  const [bookProgress, setBookProgress] = useState<Record<string, { percent: number; lastRead: string }>>({})
   const [activeBook, setActiveBook] = useState<any | null>(null)
   // Room Conversation ID mapping
   const ROOM_CONV_IDS: Record<string, string> = {
@@ -175,7 +176,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   const pomoMode = pomoClock.mode
   const setPomoTimeLeft = (remaining: number) => setPomoClock({ mode: "work", remaining })
   const [sessionSeconds, setSessionSeconds] = useState(0)
-  const [isTimerRunning, setIsTimerRunning] = useState(true)
+  const [isTimerRunning, setIsTimerRunning] = useState(false)
 
   const [currentSound, setCurrentSound] = useState("none")
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -264,6 +265,20 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
     fetchBooks()
   }, [roomId])
 
+  useEffect(() => {
+    if (!user?.id || !realBooks.length) return
+    const bookIds = realBooks.map(book => book.id)
+    createClient().from("reading_progress").select("book_id,progress_percent,last_read_at,current_page,total_pages")
+      .eq("user_id", user.id).in("book_id", bookIds).then(({ data }) => {
+        const next: Record<string, { percent: number; lastRead: string }> = {}
+        for (const progress of data || []) next[String(progress.book_id)] = {
+          percent: progress.progress_percent ?? Math.round((progress.current_page / (progress.total_pages || 1)) * 100),
+          lastRead: progress.last_read_at,
+        }
+        setBookProgress(next)
+      })
+  }, [user?.id, realBooks])
+
   const recommendedBooks = realBooks;
 
   // A session belongs only to the room page. The provider owns its one channel.
@@ -333,8 +348,10 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
     rewardedSectionsRef.current.add(key)
     const points = 20
     void createClient().from("reader_rewards").insert({ user_id: user.id, book_id: activeBook.id, section_number: nextSection, target_pages: Math.min(numPages, nextSection * sectionSize), points }).then(({ error }) => {
-      if (!error) setRewardPoints(total => total + points)
-      setRewardPopup({ section: nextSection, points, complete: false })
+      if (!error) {
+        setRewardPoints(total => total + points)
+        setRewardPopup({ section: nextSection, points, complete: false })
+      }
     })
   }, [activeBook?.id, user?.id, pageNumber, numPages])
 
@@ -345,8 +362,10 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
     rewardedSectionsRef.current.add(key)
     const points = 100
     void createClient().from("reader_rewards").insert({ user_id: user.id, book_id: activeBook.id, section_number: 6, target_pages: numPages, points }).then(({ error }) => {
-      if (!error) setRewardPoints(total => total + points)
-      window.setTimeout(() => setRewardPopup({ section: 5, points, complete: true }), 350)
+      if (!error) {
+        setRewardPoints(total => total + points)
+        window.setTimeout(() => setRewardPopup({ section: 5, points, complete: true }), 350)
+      }
     })
   }, [activeBook?.id, user?.id, pageNumber, numPages])
 
@@ -356,7 +375,10 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
     const updateWidth = () => {
       if (pdfContainerRef.current) {
         const w = pdfContainerRef.current.clientWidth - 40;
-        if (w > 250) setPdfBoxWidth(w);
+        const h = pdfContainerRef.current.clientHeight - 32;
+        // A portrait PDF is roughly 0.73 as wide as it is tall. First render
+        // therefore fits the complete page in the reader; zoom remains manual.
+        if (w > 250 && h > 250) setPdfBoxWidth(Math.min(w, Math.max(270, Math.floor(h * 0.73))));
       }
     };
     updateWidth();
@@ -697,7 +719,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
         
         {/* IF READING: Show PDF Viewer Area */}
         {activeBook && (
-          <div className={styles.bookReader} style={{ background: "var(--color-surface)", borderRadius: "var(--radius-lg)", border: "1px solid var(--color-border)", display: "flex", flexDirection: "column", overflow: "hidden", height: "82vh", minHeight: "600px" }}>
+          <div className={styles.bookReader} style={{ background: "var(--color-surface)", borderRadius: "var(--radius-lg)", border: "1px solid var(--color-border)", display: "flex", flexDirection: "column", overflow: "hidden", height: "calc(100vh - 210px)", minHeight: "520px" }}>
              <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid var(--color-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   <h3 style={{ fontSize: "1.1rem", fontWeight: 700 }}>{activeBook.title}</h3>
@@ -756,7 +778,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                       onPageChange={setPageNumber}
                       pageNumber={pageNumber}
                       scale={scale}
-                      width={pdfBoxWidth ? Math.min(pdfBoxWidth, 750) : undefined}
+                      width={pdfBoxWidth || undefined}
                       highlights={annotations}
                       onLoadSuccess={({ numPages }) => {
                         setNumPages(numPages)
@@ -1350,6 +1372,12 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: activeBook ? "0.8rem" : "0.9rem", fontWeight: 700, lineHeight: 1.2 }} className="truncate" title={b.title}>{b.title}</div>
                           <div style={{ fontSize: "0.75rem", color: "var(--color-text-secondary)", marginTop: "4px" }} className="truncate">By {b.authors?.name || b.author || "Unknown"}</div>
+                          {bookProgress[String(b.id)] && <div style={{ marginTop: "0.55rem", fontSize: "0.68rem", color: "var(--color-text-muted)" }}>
+                            <div>Continue from {bookProgress[String(b.id)].percent}% · last reading saved</div>
+                            <div style={{ height: "4px", marginTop: "5px", borderRadius: "999px", background: "var(--color-border)", overflow: "hidden" }}>
+                              <div style={{ width: `${Math.min(100, Math.max(0, bookProgress[String(b.id)].percent))}%`, height: "100%", borderRadius: "inherit", background: "linear-gradient(90deg, #d97706, #f59e0b)" }} />
+                            </div>
+                          </div>}
                           <button 
                             className="btn btn-primary btn-sm" 
                             style={{ marginTop: "0.5rem", width: "100%", justifyContent: "center" }}

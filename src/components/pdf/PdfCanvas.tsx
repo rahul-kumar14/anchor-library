@@ -79,7 +79,7 @@ function PdfCanvasSource({ bookId, watermark, pageNumber, scale, width, pageClas
       onItemClick={({ pageNumber: page }) => { if (page) onPageChange(page) }}
       onSourceError={renderFailed} loading={loading} error={null}>
       {({ pdf }) => <Page pageNumber={Math.max(1, Math.min(pageNumber, pdf.numPages))}
-        renderMode="canvas" renderTextLayer renderAnnotationLayer scale={scale} width={width}
+        renderMode="canvas" renderTextLayer renderAnnotationLayer scale={width ? undefined : scale} width={width ? Math.round(width * scale) : undefined}
         className={pageClassName} onRenderTextLayerSuccess={applyHighlights}
         onLoadError={renderFailed} onRenderError={renderFailed} loading={loading} />}
     </Document>}
