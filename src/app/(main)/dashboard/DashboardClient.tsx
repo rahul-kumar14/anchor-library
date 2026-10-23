@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import styles from "./page.module.css"
 
@@ -46,13 +46,19 @@ export default function DashboardClient({
   const [showFinished, setShowFinished] = useState(false)
 
   // Compute local greeting (morning / afternoon / evening) based on user's current clock
-  const [greetingText] = useState(() => {
-    if (greeting) return greeting;
+    // Client-side local timezone detection (ensures IST / user local time, not UTC server time)
+  const [greetingText, setGreetingText] = useState<string>("evening");
+
+  useEffect(() => {
     const h = new Date().getHours();
-    if (h < 12) return "morning";
-    if (h < 17) return "afternoon";
-    return "evening";
-  });
+    if (h < 12) {
+      setGreetingText("morning");
+    } else if (h < 17) {
+      setGreetingText("afternoon");
+    } else {
+      setGreetingText("evening");
+    }
+  }, []);
 
   const scrollToSection = (id: string) => {
     const el = document.getElementById(id)
