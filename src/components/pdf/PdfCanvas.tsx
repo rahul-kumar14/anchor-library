@@ -83,6 +83,6 @@ function PdfCanvasSource({ bookId, watermark, pageNumber, scale, width, pageClas
         className={pageClassName} onRenderTextLayerSuccess={applyHighlights}
         onLoadError={renderFailed} onRenderError={renderFailed} loading={loading} />}
     </Document>}
-    {!error && <div className={styles.watermark} aria-hidden="true"><span>Anchor Library · {watermark || "Reading copy"}</span></div>}
+    {!error && <div className={styles.watermark} aria-hidden="true"><span>Anchor Library</span></div>}
   </div><p className={styles.printNotice}>This book is available for in-app reading only.</p></>
 }

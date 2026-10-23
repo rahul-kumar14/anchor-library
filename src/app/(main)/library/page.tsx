@@ -44,32 +44,52 @@ export default async function LibraryPage({
 
   return (
     <div className={styles.page}>
+      <div className={styles.libraryBackdrop} aria-hidden="true" />
       <div className="container">
         <div className={styles.header}>
           <div>
             <h1 className={`${styles.title} heading-serif`}>
-              📚 Library
+              <span className={styles.animatedTitleWrap}>
+                <span className={styles.animatedLibraryLogo}>
+                  <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                  </svg>
+                </span>
+                <span className={styles.animatedGradientText}>Anchor Library</span>
+              </span>
             </h1>
             <p className={styles.subtitle}>Browse our collection of books across all categories</p>
           </div>
         </div>
 
-        <form className={styles.filterBar} method="GET">
+                <form className={styles.filterBar} method="GET">
           {category && <input type="hidden" name="category" value={category} />}
-          <div className={styles.searchWrap}>
-            <span className={styles.searchIcon}>🔍</span>
-            <input
-              aria-label="Search books by title or author"
-              name="search"
-              type="text"
-              className={`input ${styles.searchInput}`}
-              placeholder="Search books by title, author..."
-              defaultValue={search}
-            />
+          
+          {/* Main Search Row with side-by-side Action Buttons */}
+          <div className={styles.searchRow}>
+            <div className={styles.searchWrap}>
+              <span className={styles.searchIcon} aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', opacity: 0.85 }}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg></span>
+              <input
+                aria-label="Search books by title or author"
+                name="search"
+                type="text"
+                className={`input ${styles.searchInput}`}
+                placeholder="Search books by title, author, keyword..."
+                defaultValue={search}
+              />
+            </div>
+            
+            <button type="submit" className={styles.searchBtn} title="Search books"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle' }}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg><span>Search</span></button>
+
+            <Link href="/favorites" className={styles.savedBtn} title="View your saved books">
+              <span className={styles.savedHeart}><svg width="16" height="16" viewBox="0 0 24 24" fill="#f87171" stroke="#f87171" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle' }}><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg></span>
+              <span>Saved Books</span>
+            </Link>
           </div>
+
+          {/* Category Chips Scroll */}
           <div className={styles.categoryScroll}>
-            <Link href="/favorites" className={styles.categoryChip}>♡ Saved books</Link>
-            <button type="submit" className="btn btn-primary btn-sm">Search</button>
             <Link
               href="/library"
               className={`${styles.categoryChip} ${!category ? styles.categoryActive : ""}`}

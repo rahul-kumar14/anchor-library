@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 import FocusLauncher from "@/components/home/FocusLauncher"
+import AnimatedFacts from "@/components/home/AnimatedFacts"
 import { getRoomShelf } from "@/lib/home-shelf"
 import styles from "./page.module.css"
 
@@ -24,7 +25,7 @@ export default async function HomePage() {
       </div>
       <div className={styles.launcher}><FocusLauncher /></div>
     </section>
-    <div className={styles.facts}><span><strong>{bookCount ?? "—"}</strong> books to discover</span><span><strong>{categoryCount ?? "—"}</strong> reading categories</span><span><strong>9</strong> rooms for different goals</span><span><strong>Your pace.</strong> Your reading practice.</span></div>
+    <AnimatedFacts bookCount={bookCount} categoryCount={categoryCount} roomCount={9} />
     <section className={styles.workflow} id="how-it-works">
       <div className={styles.sectionHead}><div><p className={styles.eyebrow}>A SMALL RITUAL. A GOOD HABIT.</p><h2>Arrive with a goal.<br /><em>Leave with something learned.</em></h2></div><p>Everything you need for a reading session, close at hand. Settle in for fifteen minutes or stay for a chapter.</p></div>
       <div className={styles.steps}>

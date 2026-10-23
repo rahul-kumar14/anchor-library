@@ -10,7 +10,7 @@ import PageJump from "@/components/pdf/PageJump"
 import { advanceFocusTimer } from "@/lib/focus-timer"
 import UserProfileModal from "./UserProfileModal"
 import { useStudyRoomSession } from "@/context/StudyRoomContext"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 
 const PdfCanvas = dynamic(() => import("@/components/pdf/PdfCanvas"), { ssr: false })
 
@@ -23,6 +23,8 @@ const AMBIENT_SOUNDS = [
 
 export default function StudyRoomClient({ room, roomId }: { room: any; roomId: string }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const urlBookId = searchParams?.get("book")
   const { activeSession, members: activeUsers, joinSession, leaveSession, updateSessionStatus } = useStudyRoomSession()
   const supabase = createClient()
   const [user, setUser] = useState<any>(null)
@@ -191,85 +193,99 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   // Fetch real books and categories
   useEffect(() => {
     async function fetchBooks() {
-      setBooksLoading(true)
-      const { data, error } = await supabase
-        .from('books')
-        .select(`id,title,author,cover_url,cover_image_url,description_hindi,language,genre`)
-        .limit(500)
-        
-      if (data) {
-        let filtered: any[] = [];
-        
-        // Target room mappings
-        const keywordsMap: Record<string, string[]> = {
-          "reading": ["fiction", "literature", "novel", "story", "poetry", "classic", "philosophy", "biography"],
-          "english-lit": ["english", "english-literature", "classic", "fiction"],
-          "coding": ["programming", "tech", "coding", "computer", "dsa", "javascript", "git"],
-          "upsc": ["history", "polity", "upsc", "geography", "civil"],
-          "language": ["language", "grammar"],
-          "gate": ["science", "engineering", "math"],
-          "pomodoro": ["productivity", "habit", "focus", "self-help"],
-        };
+        setBooksLoading(true)
+        const { data, error } = await supabase
+          .from('books')
+          .select(`id,title,author,cover_url,cover_image_url,description,description_hindi,language,genre`)
+          .limit(500)
+          
+        if (data) {
+          const exact = data.filter((b: any) => b.description_hindi === roomId);
+          const related = data.filter((b: any) => {
+            if (b.description_hindi === roomId) return false;
+            const text = [b.title, b.genre, b.description || ''].join(' ').toLowerCase();
 
-        const targetKeywords = keywordsMap[roomId] || [];
+            if (roomId === 'gate') {
+              return /engineering|science|data science|operating system|signal processing|algorithms|complexity science|statistics/i.test(text) &&
+                     !/fiction|novel|poetry|literature|dracula/i.test(text);
+            }
+            if (roomId === 'coding') {
+              return /coding|programming|tech|computer|dsa|javascript|python|algorithms|systems/i.test(text);
+            }
+            if (roomId === 'upsc') {
+              return /history|nationalist|polity|civil|geography|social novel|social realism|social fiction/i.test(text);
+            }
+            if (roomId === 'pomodoro') {
+              return /stoic|philosophy|meditations|mindset|productivity|habit|focus/i.test(text);
+            }
+            if (roomId === 'language') {
+              return /grammar|criticism|literary history|language/i.test(text);
+            }
+            if (roomId === 'silent') {
+              return /stoic|philosophy|existential|meditations/i.test(text);
+            }
+            if (roomId === 'night-owl') {
+              return /mystery|thriller|science fiction|gothic horror|dystopia/i.test(text);
+            }
+            if (roomId === 'reading') {
+              return b.language && b.language.toLowerCase() === 'hindi';
+            }
+            if (roomId === 'english-lit') {
+              return (b.language && b.language.toLowerCase() === 'english') && !/coding|programming|tech|computer/i.test(text);
+            }
+            return false;
+          });
 
-        filtered = data.filter((b: any) => {
-          const assignedRoom = Object.keys(ROOM_CONV_IDS).includes(b.description_hindi) ? b.description_hindi : "";
-
-          // 1. If book has a specifically assigned room, strictly match that room!
-          if (assignedRoom) {
-            return assignedRoom === roomId;
-          }
-
-          // 2. If no room explicitly assigned:
-          if (roomId === "silent" || roomId === "night-owl") {
-            return true;
-          }
-
-          // For Hindi Literature room: match Hindi language books by default
-          if (roomId === "reading") {
-            return (b.language && b.language.toLowerCase() === "hindi") ||
-              targetKeywords.some(k => (b.genre && b.genre.toLowerCase().includes(k)));
-          }
-
-          // For English Literature room: NEVER include coding/tech books
-          if (roomId === "english-lit") {
-            const isTech = ["coding", "programming", "tech", "computer", "dsa", "javascript", "git"].some(k =>
-              (b.genre && b.genre.toLowerCase().includes(k)) ||
-              (b.title && b.title.toLowerCase().includes(k))
-            );
-            if (isTech) return false;
-
-            return (b.language && b.language.toLowerCase() === "english" && !isTech) ||
-              targetKeywords.some(k => (b.genre && b.genre.toLowerCase().includes(k)));
-          }
-
-          // For Coding room
-          if (roomId === "coding") {
-            return ["coding", "programming", "tech", "computer", "dsa", "javascript", "git"].some(k =>
-              (b.genre && b.genre.toLowerCase().includes(k)) ||
-              (b.title && b.title.toLowerCase().includes(k))
-            );
-          }
-
-          // Default fallback matching by genre keywords
-          return targetKeywords.some(k => 
-            (b.genre && b.genre.toLowerCase().includes(k)) ||
-            (b.title && b.title.toLowerCase().includes(k))
-          );
-        });
-        
-        // An unpopulated subject shelf should not block reading in the room.
-        // These are clearly labelled general suggestions, not assigned books.
-        setGeneralBookSuggestions(filtered.length === 0 && data.length > 0)
-        setRealBooks((filtered.length ? filtered : data.slice(0, 12)).map(book => ({ ...book, cover_url: book.cover_url || book.cover_image_url })));
-      } else {
-        setRealBooks([]);
+          const combined = [...exact, ...related];
+          setGeneralBookSuggestions(exact.length === 0 && combined.length > 0);
+          setRealBooks((combined.length ? combined : data.slice(0, 15)).map((book: any) => ({
+            ...book,
+            cover_url: book.cover_url || book.cover_image_url
+          })));
+        } else {
+          setRealBooks([]);
+        }
+        setBooksLoading(false)
       }
-      setBooksLoading(false)
+      fetchBooks()
+    }, [roomId])
+
+  useEffect(() => {
+    if (!user?.id || !realBooks.length) return
+    const bookIds = realBooks.map(book => book.id)
+    createClient().from("reading_progress").select("book_id,progress_percent,last_read_at,current_page,total_pages")
+      .eq("user_id", user.id).in("book_id", bookIds).then(({ data }) => {
+        const next: Record<string, { percent: number; lastRead: string }> = {}
+        for (const progress of data || []) next[String(progress.book_id)] = {
+          percent: progress.progress_percent ?? Math.round((progress.current_page / (progress.total_pages || 1)) * 100),
+          lastRead: progress.last_read_at,
+        }
+        setBookProgress(next)
+      })
+  }, [user?.id, realBooks])
+
+  
+  // Auto-open book if passed in URL query param ?book=[id]
+  useEffect(() => {
+    if (!urlBookId) return;
+    async function loadRequestedBook() {
+      // First check if already in realBooks
+      const found = realBooks.find((b: any) => String(b.id) === String(urlBookId));
+      if (found) {
+        setActiveBook(found);
+        return;
+      }
+      // Otherwise fetch directly by id
+      const { data } = await supabase.from('books').select('id,title,author,cover_url,cover_image_url,description,description_hindi,language,genre').eq('id', urlBookId).single();
+      if (data) {
+        setActiveBook({
+          ...data,
+          cover_url: data.cover_url || data.cover_image_url
+        });
+      }
     }
-    fetchBooks()
-  }, [roomId])
+    loadRequestedBook();
+  }, [urlBookId, realBooks]);
 
   useEffect(() => {
     if (!user?.id || !realBooks.length) return
@@ -786,7 +802,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                  <div style={{ margin: "auto 0", boxShadow: "0 8px 32px rgba(0,0,0,0.15)" }}>
                     <PdfCanvas
                       bookId={activeBook.id}
-                      watermark={user?.user_metadata?.username || "Member"}
+                      watermark="Anchor Library"
                       onPageChange={setPageNumber}
                       pageNumber={pageNumber}
                       scale={scale}

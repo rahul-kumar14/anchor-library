@@ -103,7 +103,25 @@
 .rewardPopup { position: absolute; z-index: 50; top: 50%; left: 50%; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 3px; min-width: 280px; padding: 24px 32px; border: 1px solid rgba(217,119,6,0.35); border-radius: 18px; background: linear-gradient(145deg, #fffdf4, #fff1c6); box-shadow: 0 18px 48px rgba(120,53,15,0.28); text-align: center; animation: fadeIn 0.3s ease; }.rewardPopup > button { position: absolute; right: 10px; top: 8px; color: var(--color-text-muted); }.rewardPopup > span { color: #d97706; font-size: 2rem; }.rewardPopup strong { font-family: var(--font-heading); font-size: 1.3rem; }.rewardPopup p { color: var(--color-text-secondary); font-size: 0.8rem; }.rewardPopup b { margin-top: 4px; color: #a16207; font-size: 0.95rem; }.completionPopup { position: fixed; inset: 0; transform: none; width: auto; min-width: 0; padding: 2rem; align-content: center; background: radial-gradient(circle, rgba(255,252,237,0.97), rgba(137,81,22,0.93)); color: white; border: 0; border-radius: 0; box-shadow: none; }.completionPopup > span { font-size: 5rem; }.completionPopup strong { color: white; font-size: clamp(2.5rem, 7vw, 5rem); }.completionPopup p { max-width: 500px; color: #fff7de; font-size: 1.1rem; }.completionPopup b { color: #ffdd6a; font-size: 1.25rem; }.completionPopup > button { color: white; right: 28px; top: 22px; font-size: 1.2rem; }.fireworks { margin-bottom: 8px; color: #ffdc5c; font-size: clamp(1.8rem, 5vw, 4rem); letter-spacing: 0.35em; animation: float 1.4s ease-in-out infinite; }
 .selectionMenu { position: fixed; z-index: 40; display: flex; align-items: center; gap: 3px; padding: 6px; border: 1px solid rgba(30, 41, 59, 0.15); border-radius: 12px; background: rgba(255,255,255,0.98); box-shadow: 0 8px 28px rgba(15, 23, 42, 0.18); }
 .selectionMenu button { min-height: 28px; padding: 4px 7px; border-radius: 7px; font-size: 0.72rem; font-weight: 700; }
-.highlightAmber { color: #d97706; }.highlightBlue { color: #2563eb; }.highlightPink { color: #db2777; }.highlightGreen { color: #16a34a; }
+.selectionMenu button {
+  min-height: 32px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 1.15rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.selectionMenu button:hover {
+  transform: scale(1.15);
+}
+.highlightAmber { color: #f59e0b; background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.25) !important; }
+.highlightBlue { color: #3b82f6; background: rgba(59, 130, 246, 0.12); border-color: rgba(59, 130, 246, 0.25) !important; }
+.highlightPink { color: #ec4899; background: rgba(236, 72, 153, 0.12); border-color: rgba(236, 72, 153, 0.25) !important; }
+.highlightGreen { color: #10b981; background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.25) !important; }
 .selectionAction { color: var(--color-text-secondary); background: var(--color-surface-2); }
 .selectionAction:hover { color: var(--color-primary-dark); background: var(--color-surface-3); }
 .notePopover { position: absolute; top: calc(100% + 8px); right: 0; display: grid; gap: 8px; width: 250px; padding: 10px; border: 1px solid var(--color-border); border-radius: 10px; background: white; box-shadow: var(--shadow-lg); }
@@ -353,4 +371,16 @@
   .roomGrid {
     grid-template-columns: 1fr;
   }
+}
+
+.colorDot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9), 0 2px 6px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s ease;
+}
+.selectionMenu button:hover .colorDot {
+  transform: scale(1.25);
 }

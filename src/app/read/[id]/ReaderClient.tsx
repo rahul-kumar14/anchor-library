@@ -27,7 +27,9 @@ export default function ReaderPage() {
   const [selectedText, setSelectedText] = useState("")
   const [noteInput, setNoteInput] = useState("")
   const { pageNumber, setPageNumber, numPages, setNumPages, progressStatus } = useReadingProgress(typeof id === "string" ? id : null, userId)
-  const { annotations, saveAnnotation, saving, noteStatus } = useBookAnnotations(typeof id === "string" ? id : null, userId)
+  const { annotations, saveAnnotation, removeAnnotation, saving, noteStatus } = useBookAnnotations(typeof id === "string" ? id : null, userId)
+  const [selectionMenu, setSelectionMenu] = useState<{ top: number; left: number } | null>(null)
+  const [noteComposerOpen, setNoteComposerOpen] = useState(false)
   const [watermark, setWatermark] = useState("Reading copy")
 
   useEffect(() => { setSelectedText("") }, [pageNumber, id])
@@ -114,14 +116,27 @@ export default function ReaderPage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [pageNumber, numPages, userId, book, isFlipping]);
 
-  // Text selection handler
+  // Text selection handler matching Study Room
   useEffect(() => {
     const handleSelectionChange = () => {
       const selection = window.getSelection();
-      if (selection && selection.toString().trim().length > 0 &&
-          pdfContainerRef.current?.contains(selection.anchorNode) &&
-          pdfContainerRef.current?.contains(selection.focusNode)) {
-        setSelectedText(selection.toString().trim());
+      if (!selection || selection.isCollapsed) return;
+
+      const text = selection.toString().trim();
+      if (!text) return;
+
+      const anchorNode = selection.anchorNode;
+      const focusNode = selection.focusNode;
+      const container = pdfContainerRef.current;
+
+      if (container && anchorNode && focusNode && container.contains(anchorNode) && container.contains(focusNode)) {
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        setSelectedText(text);
+        setSelectionMenu({
+          top: Math.max(12, rect.top - 54),
+          left: Math.min(window.innerWidth - 190, Math.max(12, rect.left + rect.width / 2 - 90))
+        });
       }
     };
     
@@ -129,11 +144,30 @@ export default function ReaderPage() {
     return () => document.removeEventListener("selectionchange", handleSelectionChange);
   }, []);
 
+  async function saveHighlight(color: "amber" | "blue" | "pink" | "green") {
+    if (await saveAnnotation(pageNumber, selectedText, "", color)) {
+      setSelectedText("");
+      setSelectionMenu(null);
+      window.getSelection()?.removeAllRanges();
+    }
+  }
+
+  async function clearOrRemoveSelection() {
+    const existing = annotations.find(annotation => annotation.page_number === pageNumber && annotation.selected_text === selectedText);
+    if (existing) await removeAnnotation(existing.id);
+    setSelectedText("");
+    setSelectionMenu(null);
+    setNoteComposerOpen(false);
+    window.getSelection()?.removeAllRanges();
+  }
+
   async function handleSaveAnnotation() {
     if (await saveAnnotation(pageNumber, selectedText, noteInput)) {
-      setSelectedText("")
-      setNoteInput("")
-      window.getSelection()?.removeAllRanges()
+      setSelectedText("");
+      setNoteInput("");
+      setSelectionMenu(null);
+      setNoteComposerOpen(false);
+      window.getSelection()?.removeAllRanges();
     }
   }
 
@@ -158,7 +192,9 @@ export default function ReaderPage() {
           <div className={styles.bookTitle}>{book.title}</div>
         </div>
         <div className={styles.topRight}>
-          <button className={`${styles.iconBtn} ${styles.notesToggle}`} aria-expanded={showNotes} onClick={() => setShowNotes(open => !open)}>Notes</button>
+          <button className="btn btn-ghost btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => setShowNotes(open => !open)}>
+            <span style={{ marginRight: "6px" }}>??</span>{showNotes ? "Hide notes" : `Notes (${annotations.length})`}
+          </button>
           <button className={styles.iconBtn} onClick={() => setScale(s => Math.max(0.5, s - 0.2))} title="Zoom Out">➖</button>
           <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)", minWidth: "40px", textAlign: "center" }}>
             {Math.round(scale * 100)}%
@@ -183,7 +219,7 @@ export default function ReaderPage() {
           <div className={`${styles.pdfWrapper} ${isFlipping ? styles.pageFlip : ""}`}>
             <PdfCanvas
               bookId={book.id}
-              watermark={watermark}
+              watermark="Anchor Library"
               onPageChange={setPageNumber}
               pageNumber={pageNumber}
               scale={scale}
@@ -195,78 +231,55 @@ export default function ReaderPage() {
           </div>
         </div>
 
-        {/* Right Sidebar - Notes & Highlights */}
-        <aside className={`${styles.sidebarRight} ${showNotes ? styles.notesOpen : ""}`}>
-          <div className={styles.sidebarHeader}>📝 Notes & Highlights</div>
-          <div className={styles.sidebarContent}>
-            <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginBottom: "0.8rem" }}>
-              Highlight text to quote, or add a note for <strong>Page {pageNumber}</strong> directly:
-            </p>
-            
-            {/* Annotation Form (Shows on text select OR user clicking Add Note) */}
-            <div style={{ background: "var(--color-surface-2)", padding: "1rem", borderRadius: "var(--radius-md)", marginBottom: "1rem", border: "1px solid var(--color-border)" }}>
-              {selectedText ? (
-                <div style={{ fontSize: "var(--text-xs)", fontStyle: "italic", marginBottom: "0.5rem", color: "var(--color-primary)", maxHeight: "60px", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  "{selectedText}"
-                </div>
-              ) : (
-                <div style={{ fontSize: "var(--text-xs)", marginBottom: "0.5rem", color: "var(--color-text-secondary)" }}>
-                  📌 Note for <strong>Page {pageNumber}</strong>
-                </div>
-              )}
-              <textarea 
-                className="input w-full" 
-                placeholder="Type your notes or insights here..."
-                value={noteInput}
-                onChange={(e) => setNoteInput(e.target.value)}
-                style={{ marginBottom: "0.5rem", minHeight: "65px" }}
-              />
-              <div style={{ display: "flex", gap: "0.5rem" }}>
-                <button 
-                  className="btn btn-primary btn-sm w-full" 
-                  onClick={handleSaveAnnotation}
-                  disabled={saving || (!selectedText.trim() && !noteInput.trim())}
-                >
-                  {saving ? "Saving…" : selectedText && !noteInput.trim() ? "Save Highlight" : "Save Note"}
+        {/* Floating Highlight & Note Selection Menu */}
+        {selectionMenu && (
+          <div className={styles.selectionMenu} style={{ top: selectionMenu.top, left: selectionMenu.left }} role="toolbar" aria-label="Selected text actions">
+            <button type="button" onClick={() => saveHighlight("amber")} title="Amber highlight" className={styles.highlightAmber}><span className={styles.colorDot} style={{ background: '#f59e0b' }} /></button>
+            <button type="button" onClick={() => saveHighlight("blue")} title="Blue highlight" className={styles.highlightBlue}><span className={styles.colorDot} style={{ background: '#3b82f6' }} /></button>
+            <button type="button" onClick={() => saveHighlight("pink")} title="Pink highlight" className={styles.highlightPink}><span className={styles.colorDot} style={{ background: '#ec4899' }} /></button>
+            <button type="button" onClick={() => saveHighlight("green")} title="Green highlight" className={styles.highlightGreen}><span className={styles.colorDot} style={{ background: '#10b981' }} /></button>
+            <button type="button" className={styles.selectionAction} onClick={() => setNoteComposerOpen(value => !value)}>Add note</button>
+            <button type="button" className={styles.selectionAction} onClick={clearOrRemoveSelection}>Remove</button>
+            {noteComposerOpen && (
+              <div className={styles.notePopover}>
+                <textarea autoFocus value={noteInput} onChange={event => setNoteInput(event.target.value)} placeholder="What do you want to remember?" />
+                <button type="button" className="btn btn-primary btn-sm" onClick={handleSaveAnnotation} disabled={saving || !noteInput.trim()}>
+                  {saving ? "Saving..." : "Save note"}
                 </button>
-                {selectedText && (
-                  <button className="btn btn-ghost btn-sm" onClick={() => setSelectedText("")}>Clear Quote</button>
-                )}
-              </div>
-            </div>
-
-            <p role="status" style={{ fontSize: "0.8rem", marginBottom: "0.75rem" }}>{noteStatus}</p>
-
-            {/* Saved Annotations */}
-            {annotations.filter(a => a.page_number === pageNumber).length > 0 && (
-              <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, margin: "1rem 0 0.5rem 0", color: "var(--color-text-secondary)" }}>
-                On this page:
               </div>
             )}
-            
-            {annotations.filter(a => a.page_number === pageNumber).map((ann, idx) => (
-              <div key={ann.id || idx} className={styles.noteItem}>
-                <div className={styles.noteHighlight}>"{ann.selected_text}"</div>
-                {ann.note && <div className={styles.noteText}>{ann.note}</div>}
-              </div>
-            ))}
-
-            {annotations.filter(a => a.page_number !== pageNumber).length > 0 && (
-              <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, margin: "1.5rem 0 0.5rem 0", color: "var(--color-text-secondary)" }}>
-                Other pages:
-              </div>
-            )}
-
-            {annotations.filter(a => a.page_number !== pageNumber).map((ann, idx) => (
-              <div key={ann.id || idx} className={styles.noteItem} style={{ opacity: 0.7 }} onClick={() => setPageNumber(ann.page_number || 1)}>
-                <div className={styles.noteHighlight} style={{ cursor: "pointer" }}>
-                  (Page {ann.page_number}) "{ann.selected_text}"
-                </div>
-                {ann.note && <div className={styles.noteText}>{ann.note}</div>}
-              </div>
-            ))}
           </div>
-        </aside>
+        )}
+
+        {/* Clean Notes Drawer matching Study Room */}
+        {showNotes && (
+          <aside className={styles.notesDrawer} aria-label="Saved notes">
+            <div>
+              <strong>Notes &amp; highlights</strong>
+              <button type="button" onClick={() => setShowNotes(false)}>?</button>
+            </div>
+            {annotations.length ? (
+              annotations.map(annotation => (
+                <button
+                  type="button"
+                  key={annotation.id}
+                  onClick={() => {
+                    setPageNumber(annotation.page_number);
+                    setShowNotes(false);
+                  }}
+                >
+                  <span>Page {annotation.page_number}</span>
+                  <em>{annotation.selected_text}</em>
+                  {annotation.note && <b>{annotation.note}</b>}
+                </button>
+              ))
+            ) : (
+              <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', textAlign: 'center', padding: '1rem 0' }}>
+                No saved notes yet. Highlight text to save notes.
+              </p>
+            )}
+          </aside>
+        )}
       </main>
 
       {/* Bottom Bar - Navigation & Progress */}
