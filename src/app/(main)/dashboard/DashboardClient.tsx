@@ -45,8 +45,7 @@ export default function DashboardClient({
 }: DashboardClientProps) {
   const [showFinished, setShowFinished] = useState(false)
 
-  // Compute local greeting (morning / afternoon / evening) based on user's current clock
-    // Client-side local timezone detection (ensures IST / user local time, not UTC server time)
+  // Client-side local timezone detection (ensures IST / user local time, not UTC server time)
   const [greetingText, setGreetingText] = useState<string>("evening");
 
   useEffect(() => {
@@ -228,7 +227,9 @@ export default function DashboardClient({
               )}
 
               <div className={styles.heroBookDetails}>
-                <span className={styles.heroKicker}>YOUR CURRENT READ</span>
+                <span className={styles.heroKicker}>
+                  {activeBook ? `🔥 CURRENTLY AT ${activeBookPercent}% — FINISH JALDI & EARN REWARDS!` : 'YOUR CURRENT READ'}
+                </span>
                 <h2 className={styles.heroBookTitle}>
                   {activeBook ? activeBook.books?.title : "Select a book from the library"}
                 </h2>
@@ -261,7 +262,7 @@ export default function DashboardClient({
 
                 <div className={styles.heroActionsRow}>
                   {activeBook ? (
-                    <Link href={`/read/${activeBook.book_id}`} className={styles.heroResumeBtn}>
+                    <Link href={`/study-rooms/reading?book=${activeBook.book_id}`} className={styles.heroResumeBtn}>
                       <span>Resume reading in room</span>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <line x1="5" y1="12" x2="19" y2="12" />
@@ -338,31 +339,55 @@ export default function DashboardClient({
               </div>
 
               {readingProgress && readingProgress.length > 0 ? (
-                <div className={styles.bookProgressList}>
-                  {readingProgress.map((item: any) => {
-                    const percent = Math.min(100, Math.round((item.current_page / (item.total_pages || 1)) * 100))
-                    return (
-                      <Link key={item.id} href={`/read/${item.book_id}`} className={styles.bookRowItem}>
-                        <div className={styles.bookRowCoverWrap}>
-                          {item.books?.cover_url ? (
-                            <img src={item.books.cover_url} alt={item.books.title} className={styles.bookRowCover} />
-                          ) : (
-                            <div className={styles.bookRowCoverPlaceholder}>📖</div>
-                          )}
-                        </div>
-                        <div className={styles.bookRowContent}>
-                          <h3 className={styles.bookRowTitle}>{item.books?.title}</h3>
-                          <div className={styles.bookRowBarWrap}>
-                            <div className={styles.bookRowTrack}>
-                              <div className={styles.bookRowFill} style={{ width: `${percent}%` }} />
+                <div className={styles.progressScrollContainer}>
+                  <div className={styles.bookProgressList}>
+                    {[...readingProgress]
+                      .sort((a: any, b: any) => {
+                        const pctA = Math.round(((a.current_page || 0) / (a.total_pages || 100)) * 100)
+                        const pctB = Math.round(((b.current_page || 0) / (b.total_pages || 100)) * 100)
+                        return pctB - pctA
+                      })
+                      .map((item: any) => {
+                        const percent = Math.min(100, Math.round((item.current_page / (item.total_pages || 1)) * 100))
+                        return (
+                          <Link key={item.id} href={`/study-rooms/reading?book=${item.book_id || item.books?.id}`} className={styles.bookRowItem} title="Open in Study Room">
+                            <div className={styles.bookRowCoverWrap}>
+                              {item.books?.cover_url ? (
+                                <img src={item.books.cover_url} alt={item.books.title} className={styles.bookRowCover} />
+                              ) : (
+                                <div className={styles.bookRowCoverPlaceholder}>📖</div>
+                              )}
                             </div>
-                            <span className={styles.bookRowPercent}>{percent}%</span>
-                          </div>
-                        </div>
-                        <span className={styles.rowChevron}>›</span>
-                      </Link>
-                    )
-                  })}
+                            <div className={styles.bookRowContent}>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+                                <h3 className={styles.bookRowTitle}>{item.books?.title}</h3>
+                                <span style={{
+                                  fontSize: "0.72rem",
+                                  fontWeight: 700,
+                                  color: percent >= 50 ? "#10b981" : "#f59e0b",
+                                  background: percent >= 50 ? "rgba(16, 185, 129, 0.12)" : "rgba(245, 158, 11, 0.12)",
+                                  padding: "2px 8px",
+                                  borderRadius: "12px",
+                                  border: `1px solid ${percent >= 50 ? "rgba(16, 185, 129, 0.3)" : "rgba(245, 158, 11, 0.3)"}`,
+                                  whiteSpace: "nowrap"
+                                }}>
+                                  {percent}% Done
+                                </span>
+                              </div>
+                              <div className={styles.bookRowBarWrap}>
+                                <div className={styles.bookRowTrack}>
+                                  <div className={styles.bookRowFill} style={{ width: `${percent}%`, background: percent >= 50 ? "linear-gradient(90deg, #f59e0b, #10b981)" : "#f59e0b" }} />
+                                </div>
+                                <span className={styles.bookRowPercent} style={{ fontSize: "0.72rem", color: "var(--color-text-muted)" }}>
+                                  Page {item.current_page} of {item.total_pages || "?"}
+                                </span>
+                              </div>
+                            </div>
+                            <span className={styles.rowChevron}>›</span>
+                          </Link>
+                        )
+                      })}
+                  </div>
                 </div>
               ) : (
                 <div className={styles.emptyBookList}>

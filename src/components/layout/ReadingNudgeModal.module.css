@@ -1,0 +1,257 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(8, 6, 4, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  animation: fadeInBackdrop 0.35s ease-out forwards;
+}
+
+@keyframes fadeInBackdrop {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modalCard {
+  width: 100%;
+  max-width: 540px;
+  background: linear-gradient(145deg, #1f160e 0%, #150f09 60%, #0d0905 100%);
+  border: 1px solid rgba(255, 191, 0, 0.35);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85), 0 0 35px rgba(212, 160, 23, 0.25);
+  border-radius: 20px;
+  overflow: hidden;
+  position: relative;
+  animation: popInCard 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes popInCard {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.sparkleHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.15rem 1.5rem;
+  background: linear-gradient(90deg, rgba(212, 160, 23, 0.18) 0%, rgba(212, 160, 23, 0.05) 100%);
+  border-bottom: 1px solid rgba(212, 160, 23, 0.2);
+}
+
+.trophyIcon {
+  font-size: 1.5rem;
+  filter: drop-shadow(0 0 8px rgba(255, 191, 0, 0.7));
+  animation: pulseTrophy 2s infinite ease-in-out;
+}
+
+@keyframes pulseTrophy {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+.fireworksText {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #fbbf24;
+  text-transform: uppercase;
+}
+
+.closeBtn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #cbd5e1;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.closeBtn:hover {
+  background: rgba(239, 68, 68, 0.25);
+  color: #ef4444;
+  border-color: #ef4444;
+}
+
+.modalContent {
+  padding: 1.5rem;
+}
+
+.bookVisualRow {
+  display: flex;
+  gap: 1.25rem;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.bookCoverThumb {
+  width: 90px;
+  height: 125px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 191, 0, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  flex-shrink: 0;
+}
+
+.bookFallbackThumb {
+  width: 90px;
+  height: 125px;
+  background: rgba(212, 160, 23, 0.15);
+  border: 1px solid rgba(212, 160, 23, 0.35);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.2rem;
+  flex-shrink: 0;
+}
+
+.bookInfoCol {
+  flex: 1;
+  min-width: 0;
+}
+
+.finishNudgeBadge {
+  display: inline-block;
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.45);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  margin-bottom: 0.45rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.modalBookTitle {
+  font-size: 1.25rem;
+  font-family: var(--font-serif, "Playfair Display", Georgia, serif);
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 0.25rem 0;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modalAuthor {
+  font-size: 0.85rem;
+  color: #b09c88;
+  margin: 0 0 0.85rem 0;
+}
+
+.progressStatBox {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+}
+
+.progressRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: #cbd5e1;
+  margin-bottom: 0.4rem;
+}
+
+.percentGold {
+  color: #fbbf24;
+  font-weight: 700;
+}
+
+.progressTrack {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #d97706, #fbbf24);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.6);
+}
+
+.encouragementQuote {
+  background: rgba(212, 160, 23, 0.08);
+  border-left: 3px solid #fbbf24;
+  padding: 0.85rem 1rem;
+  border-radius: 0 8px 8px 0;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: #f5eedf;
+  margin-bottom: 1.5rem;
+}
+
+.encouragementQuote strong {
+  color: #fbbf24;
+}
+
+.modalActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.85rem;
+}
+
+.cancelBtn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #cbd5e1;
+  padding: 0.65rem 1.15rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancelBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.openRoomBtn {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  border: 1px solid #fbbf24;
+  color: #ffffff;
+  padding: 0.65rem 1.35rem;
+  border-radius: 999px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  box-shadow: 0 4px 18px rgba(217, 119, 6, 0.4);
+  transition: all 0.2s ease;
+}
+
+.openRoomBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(251, 191, 36, 0.55);
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+}

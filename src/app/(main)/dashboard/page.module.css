@@ -1293,3 +1293,29 @@
     opacity: 0.9;
   }
 }
+
+/* Scrollable card for Books In Progress showing ~5 books */
+.progressScrollContainer {
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: 6px;
+  margin-right: -4px;
+}
+
+.progressScrollContainer::-webkit-scrollbar {
+  width: 6px;
+}
+
+.progressScrollContainer::-webkit-scrollbar-track {
+  background: rgba(25, 14, 6, 0.4);
+  border-radius: 8px;
+}
+
+.progressScrollContainer::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.35);
+  border-radius: 8px;
+}
+
+.progressScrollContainer::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 158, 11, 0.6);
+}

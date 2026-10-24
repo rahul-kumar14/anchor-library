@@ -287,20 +287,6 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
     loadRequestedBook();
   }, [urlBookId, realBooks]);
 
-  useEffect(() => {
-    if (!user?.id || !realBooks.length) return
-    const bookIds = realBooks.map(book => book.id)
-    createClient().from("reading_progress").select("book_id,progress_percent,last_read_at,current_page,total_pages")
-      .eq("user_id", user.id).in("book_id", bookIds).then(({ data }) => {
-        const next: Record<string, { percent: number; lastRead: string }> = {}
-        for (const progress of data || []) next[String(progress.book_id)] = {
-          percent: progress.progress_percent ?? Math.round((progress.current_page / (progress.total_pages || 1)) * 100),
-          lastRead: progress.last_read_at,
-        }
-        setBookProgress(next)
-      })
-  }, [user?.id, realBooks])
-
   const recommendedBooks = realBooks;
 
   // A session belongs only to the room page. The provider owns its one channel.
@@ -787,7 +773,137 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
 
              {showNotes && <aside className={styles.notesDrawer} aria-label="Saved notes">
                <div><strong>Notes &amp; highlights</strong><button type="button" onClick={() => setShowNotes(false)}>✕</button></div>
-               {annotations.length ? annotations.map(annotation => <button type="button" key={annotation.id} onClick={() => { setPageNumber(annotation.page_number); setShowNotes(false) }}><span>Page {annotation.page_number}</span><em>{annotation.selected_text}</em>{annotation.note && <b>{annotation.note}</b>}</button>) : <p>No saved notes yet.</p>}
+               {annotations.length ? annotations.map(annotation => (
+                <div
+                  key={annotation.id}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    background: "#FFFFFF",
+                    border: "1px solid rgba(180, 83, 9, 0.2)",
+                    borderRadius: "10px",
+                    padding: "10px 12px",
+                    marginBottom: "10px",
+                    boxShadow: "0 2px 6px rgba(120, 53, 15, 0.05)",
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  {/* Top row: Page number on the left, Delete button right beside it */}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginBottom: "6px",
+                      paddingBottom: "4px",
+                      borderBottom: "1px dashed rgba(180, 83, 9, 0.15)"
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        cursor: "pointer",
+                      }}
+                      onClick={() => {
+                        setPageNumber(annotation.page_number);
+                        setShowNotes(false);
+                      }}
+                      title="Jump to this page"
+                    >
+                      <span
+                        style={{
+                          fontSize: "0.75rem",
+                          fontWeight: 700,
+                          color: "#B45309",
+                          background: "#FEF3C7",
+                          padding: "2px 8px",
+                          borderRadius: "6px",
+                          letterSpacing: "0.02em"
+                        }}
+                      >
+                        📄 Page {annotation.page_number}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (confirm("Delete this highlight note?")) {
+                          await removeAnnotation(annotation.id);
+                        }
+                      }}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        background: "#FEE2E2",
+                        border: "1px solid #FCA5A5",
+                        color: "#DC2626",
+                        padding: "3px 8px",
+                        borderRadius: "6px",
+                        cursor: "pointer",
+                        fontSize: "0.72rem",
+                        fontWeight: 600,
+                        transition: "all 0.15s ease",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "#DC2626";
+                        e.currentTarget.style.color = "#FFFFFF";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "#FEE2E2";
+                        e.currentTarget.style.color = "#DC2626";
+                      }}
+                      title="Delete this note"
+                    >
+                      🗑️ Delete
+                    </button>
+                  </div>
+
+                  {/* Note Body: Clickable to jump to page */}
+                  <div
+                    style={{ cursor: "pointer", textAlign: "left" }}
+                    onClick={() => {
+                      setPageNumber(annotation.page_number);
+                      setShowNotes(false);
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: "0.82rem",
+                        color: "#374151",
+                        lineHeight: 1.45,
+                        fontStyle: "italic",
+                        background: "rgba(254, 243, 199, 0.4)",
+                        borderLeft: "3px solid #D97706",
+                        padding: "4px 8px",
+                        borderRadius: "0 4px 4px 0",
+                        marginBottom: annotation.note ? "6px" : "0",
+                        wordBreak: "break-word"
+                      }}
+                    >
+                      "{annotation.selected_text}"
+                    </div>
+                    {annotation.note && (
+                      <div
+                        style={{
+                          fontSize: "0.84rem",
+                          fontWeight: 600,
+                          color: "#1C1917",
+                          lineHeight: 1.4,
+                          paddingLeft: "4px",
+                          wordBreak: "break-word"
+                        }}
+                      >
+                        📝 {annotation.note}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )) : <p>No saved notes yet.</p>}
              </aside>}
 
              {rewardPopup && <div className={`${styles.rewardPopup} ${rewardPopup.complete ? styles.completionPopup : ""}`} role="status">
@@ -980,8 +1096,29 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                     }}
                     title="Click to jump to this page"
                   >
-                    <div style={{ color: "var(--color-text-muted)", fontSize: "0.7rem", marginBottom: "4px" }}>
-                      Page {ann.page_number}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "var(--color-text-muted)", fontSize: "0.7rem", marginBottom: "4px" }}>
+                      <span>Page {ann.page_number}</span>
+                      <button
+                        type="button"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (confirm("Delete this highlight note?")) {
+                            await removeAnnotation(ann.id);
+                          }
+                        }}
+                        style={{
+                          background: "rgba(239, 68, 68, 0.15)",
+                          border: "1px solid rgba(239, 68, 68, 0.35)",
+                          color: "#ef4444",
+                          borderRadius: "4px",
+                          padding: "2px 6px",
+                          cursor: "pointer",
+                          fontSize: "0.68rem"
+                        }}
+                        title="Delete note"
+                      >
+                        🗑️ Delete
+                      </button>
                     </div>
                     <div style={{ paddingLeft: "8px", borderLeft: "3px solid var(--color-primary)", color: "var(--color-text-secondary)", fontStyle: "italic", marginBottom: ann.note ? "8px" : "0" }}>
                       "{ann.selected_text}"

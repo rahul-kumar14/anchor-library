@@ -22,7 +22,15 @@ export default async function DashboardPage() {
     .eq("is_completed", false)
     .eq("user_id", user.id)
     .order("last_read_at", { ascending: false })
-    .limit(5)
+
+  // Find book with the MAXIMUM percentage progress to feature prominently
+  const inProgressSortedByPercent = [...(readingProgress || [])].sort((a: any, b: any) => {
+    const pctA = Math.round(((a.current_page || 0) / (a.total_pages || 100)) * 100)
+    const pctB = Math.round(((b.current_page || 0) / (b.total_pages || 100)) * 100)
+    return pctB - pctA
+  })
+  const activeBook = inProgressSortedByPercent[0] || null
+  const activeBookPercent = activeBook ? Math.min(99, Math.round(((activeBook.current_page || 1) / (activeBook.total_pages || 100)) * 100)) : 0
 
   // Finished books with full details
   const { data: completedBooks, count: completedCount } = await supabase
@@ -88,7 +96,9 @@ export default async function DashboardPage() {
       totalRewardPoints={totalRewardPoints}
       achievementCount={achievements?.length || 0}
       weekActivity={weekActivity}
-      readingProgress={readingProgress || []}
+      activeBook={activeBook}
+      activeBookPercent={activeBookPercent}
+      readingProgress={inProgressSortedByPercent || []}
       completedBooks={completedBooks || []}
       readerRewards={readerRewards || []}
       nextAchievement={nextAchievement}
@@ -109,12 +119,20 @@ function dateKey(date: Date) {
 }
 
 function calculateStreak(activeDates: Set<string>) {
-  let streak = 0
-  for (let offset = 0; offset < 366; offset += 1) {
-    if (!activeDates.has(dateKey(daysAgo(offset)))) break
-    streak += 1
+  // If user read today or yesterday, streak is actively intact
+  const hasToday = activeDates.has(dateKey(daysAgo(0)));
+  const hasYesterday = activeDates.has(dateKey(daysAgo(1)));
+
+  if (!hasToday && !hasYesterday) return 0;
+
+  let streak = 0;
+  // Start from today if already active today, otherwise count continuously from yesterday backwards
+  const startOffset = hasToday ? 0 : 1;
+  for (let offset = startOffset; offset < 366; offset += 1) {
+    if (!activeDates.has(dateKey(daysAgo(offset)))) break;
+    streak += 1;
   }
-  return streak
+  return streak;
 }
 
 function getNextAchievement({
