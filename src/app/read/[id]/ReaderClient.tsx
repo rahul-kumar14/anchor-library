@@ -132,7 +132,33 @@ export default function ReaderPage() {
       if (container && anchorNode && focusNode && container.contains(anchorNode) && container.contains(focusNode)) {
         const range = selection.getRangeAt(0);
         const rect = range.getBoundingClientRect();
-        setSelectedText(text);
+
+        // Calculate exact character start and end offsets within the PDF page text layer
+        let startChar = -1;
+        let endChar = -1;
+        try {
+          const spans = Array.from(container.querySelectorAll<HTMLSpanElement>(".react-pdf__Page__textContent span"));
+          let accumulated = 0;
+          for (const s of spans) {
+            const sText = (s as any).__originalText ?? s.textContent ?? "";
+            if (startChar < 0 && (s.contains(range.startContainer) || s === range.startContainer)) {
+              startChar = accumulated + range.startOffset;
+            }
+            if (endChar < 0 && (s.contains(range.endContainer) || s === range.endContainer)) {
+              endChar = accumulated + range.endOffset;
+            }
+            accumulated += sText.length;
+          }
+        } catch {
+          startChar = -1;
+          endChar = -1;
+        }
+
+        const tag = (startChar >= 0 && endChar > startChar)
+          ? `⟦#pos=${startChar}:${endChar}⟧`
+          : (startChar >= 0 ? `⟦#pos=${startChar}⟧` : "");
+
+        setSelectedText(`${text}${tag}`);
         setSelectionMenu({
           top: Math.max(12, rect.top - 54),
           left: Math.min(window.innerWidth - 190, Math.max(12, rect.left + rect.width / 2 - 90))
@@ -371,7 +397,7 @@ export default function ReaderPage() {
                         wordBreak: "break-word"
                       }}
                     >
-                      "{annotation.selected_text}"
+                      "{annotation.selected_text.replace(/⟦#(?:occ|pos)=\d+⟧$/, "")}"
                     </div>
                     {annotation.note && (
                       <div

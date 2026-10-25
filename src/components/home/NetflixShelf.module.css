@@ -1,0 +1,256 @@
+.shelfContainer {
+  position: relative;
+  width: 100%;
+  margin-top: 24px;
+}
+
+.scrollViewport {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  padding: 12px 4px 24px;
+  scrollbar-width: none; /* Hide scrollbar for clean Netflix look */
+  -ms-overflow-style: none;
+}
+
+.scrollViewport::-webkit-scrollbar {
+  display: none;
+}
+
+.booksTrack {
+  display: flex;
+  gap: 22px;
+  width: max-content;
+  min-width: 100%;
+}
+
+/* Netflix Arrow Buttons */
+.navArrow {
+  position: absolute;
+  top: 40%;
+  transform: translateY(-50%);
+  z-index: 20;
+  width: 52px;
+  height: 96px;
+  background: rgba(5, 18, 14, 0.88);
+  border: 1px solid rgba(225, 199, 125, 0.4);
+  color: #e5c46d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+}
+
+.leftArrow {
+  left: 0;
+  border-radius: 0 10px 10px 0;
+  border-left: none;
+}
+
+.rightArrow {
+  right: 0;
+  border-radius: 10px 0 0 10px;
+  border-right: none;
+}
+
+.navArrow:hover {
+  background: #e5c46d;
+  color: #071912;
+  box-shadow: 0 12px 35px rgba(229, 196, 109, 0.45);
+}
+
+.arrowIcon {
+  font-size: 44px;
+  line-height: 1;
+  font-weight: 300;
+  user-select: none;
+  transition: transform 0.2s ease;
+}
+
+.navArrow:hover .arrowIcon {
+  transform: scale(1.15);
+}
+
+.hidden {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+/* Book Card */
+.bookCard {
+  flex: 0 0 190px;
+  width: 190px;
+  display: flex;
+  flex-direction: column;
+  background: #0d281f;
+  border: 1px solid rgba(225, 199, 125, 0.24);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform 0.28s ease, border-color 0.28s ease, box-shadow 0.28s ease;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.bookCard:hover {
+  transform: translateY(-8px);
+  border-color: #e5c46d;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55), 0 0 20px rgba(229, 196, 109, 0.25);
+}
+
+.coverWrap {
+  position: relative;
+  display: block;
+  height: 240px;
+  width: 100%;
+  background: #061510;
+  overflow: hidden;
+}
+
+.coverWrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.35s ease;
+}
+
+.bookCard:hover .coverWrap img {
+  transform: scale(1.06);
+}
+
+.coverPlaceholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-size: 42px;
+  background: #092017;
+}
+
+.coverGlare {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(130deg, rgba(255, 255, 255, 0.14) 0%, transparent 60%, rgba(0, 0, 0, 0.4) 100%);
+}
+
+.roomBadge {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  right: 8px;
+  padding: 4px 8px;
+  background: rgba(7, 24, 18, 0.88);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(225, 199, 125, 0.3);
+  border-radius: 6px;
+  color: #f7f0d4;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.bookInfo {
+  display: flex;
+  flex-direction: column;
+  padding: 14px 14px 16px;
+  flex: 1;
+}
+
+.bookTitle {
+  font: 600 14px / 1.35 var(--font-heading);
+  margin: 0 0 4px 0;
+  color: #fffdf5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 38px;
+}
+
+.bookTitle a {
+  color: inherit;
+  transition: color 0.15s ease;
+}
+
+.bookTitle a:hover {
+  color: #e5c46d;
+}
+
+.bookAuthor {
+  font-size: 12px;
+  color: #9cb296;
+  margin: 0 0 14px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cardActions {
+  margin-top: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.readBtn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0d2219;
+  background: #e5c46d;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.readBtn:hover {
+  background: #f7e29b;
+  transform: translateY(-1px);
+}
+
+.roomLink {
+  padding: 7px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #e5c46d;
+  background: rgba(225, 199, 125, 0.12);
+  border: 1px solid rgba(225, 199, 125, 0.28);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.roomLink:hover {
+  background: rgba(225, 199, 125, 0.25);
+  color: #fff9e6;
+}
+
+@media (max-width: 768px) {
+  .navArrow {
+    width: 40px;
+    height: 72px;
+  }
+  .arrowIcon {
+    font-size: 32px;
+  }
+  .bookCard {
+    flex: 0 0 160px;
+    width: 160px;
+  }
+  .coverWrap {
+    height: 200px;
+  }
+}

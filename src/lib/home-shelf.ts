@@ -4,15 +4,15 @@ export type ShelfBook = {
 }
 
 const rooms = [
-  { id: "silent", name: "Silent Study", icon: "◌", keywords: ["philosophy", "meditations", "classic"] },
-  { id: "pomodoro", name: "Pomodoro Focus", icon: "◷", keywords: ["productivity", "habit", "focus", "self help", "self-help"] },
-  { id: "night-owl", name: "Night Owl Study", icon: "☾", keywords: ["mystery", "thriller", "dracula", "science fiction"] },
-  { id: "reading", name: "Hindi Literature", icon: "अ", keywords: ["hindi", "poetry", "premchand"] },
-  { id: "english-lit", name: "English Literature", icon: "Aa", keywords: ["classic", "literature", "fiction"] },
-  { id: "upsc", name: "UPSC / Civil Services", icon: "◎", keywords: ["history", "polity", "upsc", "geography", "civil", "गांधी", "सत्य के प्रयोग"] },
-  { id: "coding", name: "Coding & DSA", icon: "⌘", keywords: ["programming", "coding", "computer", "dsa", "javascript", "python", "algorithms"] },
-  { id: "gate", name: "GATE / Engineering", icon: "⚙", keywords: ["science", "engineering", "math", "statistics", "signal processing"] },
-  { id: "language", name: "Language Learning", icon: "文", keywords: ["language", "grammar", "vocabulary", "dictionary"] },
+  { id: "silent", name: "Silent Study", icon: "🔕", keywords: ["philosophy", "meditations", "classic"] },
+  { id: "pomodoro", name: "Pomodoro Focus", icon: "🍅", keywords: ["productivity", "habit", "focus", "self help", "self-help"] },
+  { id: "night-owl", name: "Night Owl Study", icon: "🌙", keywords: ["mystery", "thriller", "dracula", "science fiction"] },
+  { id: "reading", name: "Hindi Literature & Books", icon: "📖", keywords: ["hindi", "poetry", "premchand"] },
+  { id: "english-lit", name: "English Literature", icon: "📚", keywords: ["classic", "literature", "fiction"] },
+  { id: "upsc", name: "UPSC / Civil Services", icon: "📋", keywords: ["history", "polity", "upsc", "geography", "civil", "गांधी", "सत्य के प्रयोग"] },
+  { id: "coding", name: "Coding & DSA", icon: "💻", keywords: ["programming", "coding", "computer", "dsa", "javascript", "python", "algorithms"] },
+  { id: "gate", name: "GATE / Engineering", icon: "⚙️", keywords: ["science", "engineering", "math", "statistics", "signal processing"] },
+  { id: "language", name: "Language Learning", icon: "🌐", keywords: ["language", "grammar", "vocabulary", "dictionary"] },
 ]
 const roomIds = new Set(rooms.map(room => room.id))
 const technical = /programming|coding|computer|javascript|python|data structures|engineering/

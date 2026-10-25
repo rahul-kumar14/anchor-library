@@ -1,45 +1,48 @@
+.factsWrapper {
+  width: 100%;
+  background: #092017;
+  border-bottom: 1px solid rgba(225, 199, 125, 0.2);
+}
+
 .factsContainer {
-  max-width: 1400px;
+  width: 100%;
+  max-width: 1440px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  border-top: 1px solid rgba(100, 120, 74, 0.2);
-  border-bottom: 1px solid rgba(100, 120, 74, 0.2);
-  padding: 38px 32px 34px;
-  gap: 32px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.4) 0%, rgba(244, 241, 230, 0.3) 100%);
-  backdrop-filter: blur(8px);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  padding: 24px clamp(24px, 5vw, 82px);
+  color: #edf0e6;
+  box-sizing: border-box;
 }
 
 .factItem {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  padding: 8px 12px;
-  border-radius: 12px;
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  column-gap: 12px;
+  align-items: center;
+  min-height: 58px;
+  padding: 0 18px;
+  border-right: 1px solid rgba(225, 199, 125, 0.16);
   opacity: 0;
-  transform: translateY(18px);
+  transform: translateY(14px);
 }
 
-.factItem:hover {
-  transform: translateY(-4px);
-  background: rgba(255, 255, 255, 0.6);
-  box-shadow: 0 8px 24px rgba(70, 94, 52, 0.08);
+.factItem:first-child {
+  padding-left: 0;
+}
+
+.factItem:last-child {
+  padding-right: 0;
+  border-right: 0;
 }
 
 .fadeInUp {
-  opacity: 1;
-  transform: translateY(0);
-  animation: slideFadeIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: reveal 0.55s ease forwards;
 }
 
-@keyframes slideFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(22px);
-  }
+@keyframes reveal {
   to {
     opacity: 1;
     transform: translateY(0);
@@ -47,141 +50,86 @@
 }
 
 .factIconWrap {
+  grid-row: span 2;
   position: relative;
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(225, 199, 125, 0.46);
   border-radius: 50%;
-  background: rgba(82, 107, 61, 0.12);
-  border: 1px solid rgba(82, 107, 61, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 8px;
+  background: rgba(14, 40, 30, 0.6);
 }
 
 .factIcon {
-  font-size: 1.15rem;
+  color: #e5c46d;
+  font-size: 14px;
 }
 
 .factPulseGlow {
   position: absolute;
-  inset: -3px;
+  inset: -4px;
+  border: 1px solid rgba(225, 199, 125, 0.35);
   border-radius: 50%;
-  border: 1.5px solid rgba(82, 107, 61, 0.4);
-  animation: iconPulse 2.4s ease-out infinite;
+  animation: pulse 2.6s ease-out infinite;
 }
 
-@keyframes iconPulse {
+@keyframes pulse {
   0% {
-    transform: scale(0.9);
+    transform: scale(0.65);
     opacity: 0.8;
   }
-  60% {
-    transform: scale(1.45);
+  80%, 100% {
+    transform: scale(1.35);
     opacity: 0;
   }
-  100% {
-    transform: scale(1.45);
-    opacity: 0;
-  }
-}
-
-.factNumberRow {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
-}
-
-.factNumber {
-  font-size: 38px;
-  font-weight: 700;
-  font-family: var(--font-heading);
-  line-height: 1.1;
-  color: #2e3d26;
-  letter-spacing: -0.5px;
-}
-
-.plusSign {
-  font-size: 26px;
-  font-weight: 800;
-  color: #d97706;
-  text-shadow: 0 1px 3px rgba(217, 119, 6, 0.25);
-  animation: plusBounce 2s ease-in-out infinite;
-  display: inline-block;
-}
-
-@keyframes plusBounce {
-  0%, 100% {
-    transform: translateY(0) scale(1);
-  }
-  50% {
-    transform: translateY(-3px) scale(1.15);
-    color: #f59e0b;
-  }
-}
-
-.roomBadge {
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #4a6338;
-  background: rgba(74, 99, 56, 0.14);
-  padding: 2px 7px;
-  border-radius: 6px;
-  margin-left: 6px;
-}
-
-.factLabel {
-  color: #556048;
-  font-size: 15px;
-  font-weight: 500;
-  line-height: 1.5;
-  margin-top: 4px;
-}
-
-.accentBar {
-  margin-top: 8px;
-  width: 28px;
-  height: 2px;
-  background: linear-gradient(90deg, #687e52, transparent);
-  border-radius: 2px;
-  transition: width 0.3s ease;
-}
-
-.factItem:hover .accentBar {
-  width: 54px;
-  background: linear-gradient(90deg, #d97706, #f59e0b, transparent);
-}
-
-/* Philosophy 4th card */
-.philosophyItem {
-  justify-content: center;
 }
 
 .philosophyTitle {
-  font-size: 24px;
+  color: #f4f1e8;
+  font-size: 14px;
+  line-height: 1.3;
   font-weight: 700;
-  font-family: var(--font-heading);
-  color: #3b4e2f;
-  margin-top: 2px;
 }
 
-@media (max-width: 1024px) {
+.factLabel {
+  color: #afbcaa;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+@media (max-width: 950px) {
   .factsContainer {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 24px;
-    padding: 30px 24px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    row-gap: 22px;
+  }
+  .factItem:nth-child(3) {
+    border-right: 0;
+  }
+  .factItem:nth-child(4) {
+    padding-left: 0;
   }
 }
 
 @media (max-width: 600px) {
   .factsContainer {
     grid-template-columns: 1fr;
-    gap: 20px;
     padding: 24px 20px;
+    gap: 16px;
   }
-  .factNumber {
-    font-size: 32px;
+  .factItem, .factItem:first-child, .factItem:last-child {
+    min-height: 44px;
+    padding: 0;
+    border-right: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .factItem {
+    opacity: 1;
+    transform: none;
+  }
+  .factPulseGlow {
+    animation: none;
   }
 }

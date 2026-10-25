@@ -436,7 +436,33 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
       if (container && anchorNode && focusNode && container.contains(anchorNode) && container.contains(focusNode)) {
         const range = selection.getRangeAt(0)
         const rect = range.getBoundingClientRect()
-        setSelectedText(text)
+
+        // Calculate exact character start and end offsets within the PDF page text layer
+        let startChar = -1
+        let endChar = -1
+        try {
+          const spans = Array.from(container.querySelectorAll<HTMLSpanElement>(".react-pdf__Page__textContent span"))
+          let accumulated = 0
+          for (const s of spans) {
+            const sText = (s as any).__originalText ?? s.textContent ?? ""
+            if (startChar < 0 && (s.contains(range.startContainer) || s === range.startContainer)) {
+              startChar = accumulated + range.startOffset
+            }
+            if (endChar < 0 && (s.contains(range.endContainer) || s === range.endContainer)) {
+              endChar = accumulated + range.endOffset
+            }
+            accumulated += sText.length
+          }
+        } catch {
+          startChar = -1
+          endChar = -1
+        }
+
+        const tag = (startChar >= 0 && endChar > startChar)
+          ? `⟦#pos=${startChar}:${endChar}⟧`
+          : (startChar >= 0 ? `⟦#pos=${startChar}⟧` : "")
+
+        setSelectedText(`${text}${tag}`)
         setSelectionMenu({ top: Math.max(12, rect.top - 54), left: Math.min(window.innerWidth - 190, Math.max(12, rect.left + rect.width / 2 - 90)) })
       }
     };
@@ -885,7 +911,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                         wordBreak: "break-word"
                       }}
                     >
-                      "{annotation.selected_text}"
+                      "{annotation.selected_text.replace(/⟦#(?:occ|pos)=\d+⟧$/, "")}"
                     </div>
                     {annotation.note && (
                       <div
@@ -1047,7 +1073,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
               <div style={{ background: "var(--color-surface-2)", padding: "0.75rem", borderRadius: "var(--radius-md)", marginBottom: "1rem", border: "1px solid var(--color-border)" }}>
                 {selectedText ? (
                   <div style={{ fontSize: "0.75rem", fontStyle: "italic", marginBottom: "0.5rem", color: "var(--color-primary)", maxHeight: "50px", overflow: "hidden" }}>
-                    "{selectedText}"
+                    "{selectedText.replace(/⟦#(?:occ|pos)=\d+⟧$/, "")}"
                   </div>
                 ) : (
                   <div style={{ fontSize: "0.75rem", marginBottom: "0.5rem", color: "var(--color-text-secondary)" }}>
@@ -1121,7 +1147,7 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
                       </button>
                     </div>
                     <div style={{ paddingLeft: "8px", borderLeft: "3px solid var(--color-primary)", color: "var(--color-text-secondary)", fontStyle: "italic", marginBottom: ann.note ? "8px" : "0" }}>
-                      "{ann.selected_text}"
+                      "{ann.selected_text.replace(/⟦#(?:occ|pos)=\d+⟧$/, "")}"
                     </div>
                     {ann.note && (
                       <div style={{ color: "var(--color-text-primary)", fontWeight: 500 }}>

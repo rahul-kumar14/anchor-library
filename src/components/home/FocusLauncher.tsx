@@ -1,23 +1,64 @@
 "use client"
-import { useState } from "react"
+
 import { useRouter } from "next/navigation"
 import styles from "./FocusLauncher.module.css"
 
 export default function FocusLauncher() {
-  const [goal, setGoal] = useState("Read a chapter. Capture one idea.")
-  const [minutes, setMinutes] = useState(25)
   const router = useRouter()
-  return <form className={styles.card} onSubmit={event => {
-    event.preventDefault()
-    router.push("/study-rooms/pomodoro?" + new URLSearchParams({ goal: goal.trim() || "One focused reading session", minutes: String(minutes) }))
-  }}>
-    <div className={styles.top}><span className={styles.mark}>⚓</span><span>YOUR NEXT FOCUS SESSION</span><span className={styles.tag}>Camera-free</span></div>
-    <h2>A little focus.<br /><em>A meaningful finish.</em></h2>
-    <label htmlFor="focus-goal">What would make this session count?</label>
-    <input id="focus-goal" value={goal} onChange={event => setGoal(event.target.value)} maxLength={120} required />
-    <fieldset><legend>Make a little time</legend><div className={styles.durations}>{[15, 25, 50].map(duration => <button key={duration} type="button" aria-pressed={minutes === duration} onClick={() => setMinutes(duration)}>{duration} <span>min</span></button>)}</div></fieldset>
-    <button type="submit" className={styles.start}>Find your focus →</button>
-    <p>Bring a goal. Pick a book. Leave with a takeaway.</p>
-    <div className={styles.bottom}><span>01 / Set an intention</span><span>02 / Settle in</span><span>03 / Keep the idea</span></div>
-  </form>
+  return <section className={styles.card} aria-label="Study room preview">
+    <div className={styles.top}>
+      <span className={styles.mark}>⚓</span>
+      <span className={styles.roomName}>Silent Study Room</span>
+      <span className={styles.live}><span className={styles.pulseDot} /> 2 online</span>
+      <span className={styles.tag}>⏱ 25:00</span>
+    </div>
+    <div className={styles.workspace}>
+      <article className={styles.reader}>
+        <div className={styles.bookSpineGlow} />
+        <div className={styles.bookmarkRibbon} />
+        <div className={styles.editionTag}>Anchor Library Edition</div>
+        <h2>The Psychology<br />of Money</h2>
+        <p>Most people don’t make financial decisions on a spreadsheet. They make them at the dinner table, or in a meeting room.</p>
+        <p>What seems crazy to one person might make perfect sense to another.</p>
+        <div className={styles.pageTurnCorner} title="Page 18 of 248">
+          <span className={styles.pageNo}>p. 18</span>
+          <span className={styles.turnFold}>↷</span>
+        </div>
+      </article>
+      <aside className={styles.chat}>
+        <div className={styles.chatHead}>
+          <span className={styles.activeTab}>Chat</span>
+          <span>People (2)</span>
+        </div>
+        <div className={styles.messages}>
+          <div className={styles.message}>
+            <span className={styles.avatar}>Y</span>
+            <div>
+              <strong>You</strong>
+              <p>This chapter is making me rethink my habits.</p>
+            </div>
+          </div>
+          <div className={styles.message}>
+            <span className={styles.avatar} style={{ background: "#97b977" }}>S</span>
+            <div>
+              <strong>Study buddy</strong>
+              <p>Totally agree! Let&apos;s read the next one together.</p>
+            </div>
+          </div>
+        </div>
+        <div className={styles.composer}>
+          <span>Type a message…</span>
+          <span className={styles.sendIcon}>↵</span>
+        </div>
+      </aside>
+    </div>
+    <button className={styles.start} type="button" onClick={() => router.push("/study-rooms/pomodoro?goal=Read+with+focus&minutes=25")}>
+      Start your focus session →
+    </button>
+    <div className={styles.bottom}>
+      <span>📖 Open a book</span>
+      <span>👥 Read together</span>
+      <span>💡 Keep the idea</span>
+    </div>
+  </section>
 }

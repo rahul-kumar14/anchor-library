@@ -78,11 +78,18 @@ export default async function DashboardPage() {
     active: activeDates.has(dateKey(day))
   }))
 
+  // Calculate truly unlocked badges count (matching the Badges grid below)
+  const unlockedBadgesCount =
+    (totalRewardPoints >= 20 ? 1 : 0) +
+    (totalRewardPoints >= 100 ? 1 : 0) +
+    ((completedCount ?? 0) > 0 ? 1 : 0) +
+    (achievements?.length || 0)
+
   const nextAchievement = getNextAchievement({
     streak,
     readingBooks: readingCount ?? 0,
     completedBooks: completedCount ?? 0,
-    achievementCount: (achievements?.length || 0) + (readerRewards?.length || 0),
+    achievementCount: unlockedBadgesCount,
     rewardPoints: totalRewardPoints
   })
 
@@ -94,13 +101,14 @@ export default async function DashboardPage() {
       readingCount={readingCount ?? 0}
       completedCount={completedCount ?? 0}
       totalRewardPoints={totalRewardPoints}
-      achievementCount={achievements?.length || 0}
+      achievementCount={unlockedBadgesCount}
       weekActivity={weekActivity}
       activeBook={activeBook}
       activeBookPercent={activeBookPercent}
       readingProgress={inProgressSortedByPercent || []}
       completedBooks={completedBooks || []}
       readerRewards={readerRewards || []}
+      achievements={achievements || []}
       nextAchievement={nextAchievement}
       notifications={notifications || []}
     />

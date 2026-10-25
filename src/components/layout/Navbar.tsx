@@ -73,7 +73,7 @@ export default function Navbar() {
     pathname === href || pathname?.startsWith(href + "/")
 
   return (
-    <nav className={styles.navbar}>
+    <nav className={`${styles.navbar} ${pathname === "/" ? styles.navbarHome : ""}`}>
       <div className={styles.inner}>
         {/* Logo */}
         <Link href="/" className={styles.logo}>

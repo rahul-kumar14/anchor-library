@@ -9,6 +9,8 @@
   z-index: 1000;
   box-shadow: 0 1px 8px rgba(120, 53, 15, 0.06);
 }
+.navbarHome { background: rgba(8, 22, 17, 0.88); border-bottom-color: rgba(225, 199, 125, 0.18); box-shadow: 0 1px 12px rgba(0,0,0,.18); }
+.navbarHome .logoText { color: #f0d688; }.navbarHome .logoIcon { filter: drop-shadow(0 1px 5px rgba(240, 214, 136, .26)); }.navbarHome .navLink, .navbarHome .dashBtn { color: #d8dfd2; }.navbarHome .navLink:hover, .navbarHome .navLinkActive { color: #f0d688; background: rgba(225,199,125,.11); }.navbarHome .hamburger span { background: #f0d688; }
 
 .inner {
   max-width: var(--content-max);
