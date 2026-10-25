@@ -41,16 +41,117 @@ function PdfCanvasSource({ bookId, watermark, pageNumber, scale, width, pageClas
   const container = useRef<HTMLDivElement>(null)
   const file = useMemo(() => ({ url: `${getPdfSourceUrl(bookId)}&attempt=${attempt}`, withCredentials: true }), [bookId, attempt])
 
+  // Precision Highlight Algorithm:
+  // Replaces the naive `quote.includes(text) || text.includes(quote)` check which previously
+  // highlighted every single line/span that contained generic words like 'the', 'is', 'a', etc.
+  // Now only highlights spans that actually contain the exact word/phrase selected by user.
   const applyHighlights = useCallback(() => {
-    const quotes = highlights.filter(a => a.page_number === pageNumber && a.selected_text)
-      .map(a => ({ quote: a.selected_text!.replace(/\s+/g, ""), color: a.color || "amber" }))
-    container.current?.querySelectorAll<HTMLSpanElement>(".react-pdf__Page__textContent span").forEach(span => {
-      const text = (span.textContent || "").replace(/\s+/g, "")
-      const highlight = text.length >= 2 ? quotes.find(item => item.quote.includes(text) || text.includes(item.quote)) : undefined
-      const colors: Record<string, [string, string]> = { amber: ["rgba(245, 158, 11, 0.30)", "#d97706"], blue: ["rgba(96, 165, 250, 0.32)", "#2563eb"], pink: ["rgba(244, 114, 182, 0.28)", "#db2777"], green: ["rgba(74, 222, 128, 0.28)", "#16a34a"] }
-      const color = highlight ? colors[highlight.color] || colors.amber : undefined
-      span.style.backgroundColor = color?.[0] || ""
-      span.style.borderBottom = color ? `3px solid ${color[1]}` : ""
+    const pageHighlights = highlights.filter(a => a.page_number === pageNumber && a.selected_text?.trim())
+    const textSpans = container.current?.querySelectorAll<HTMLSpanElement>(".react-pdf__Page__textContent span")
+    if (!textSpans || textSpans.length === 0) return
+
+    // 1. Reset all spans first
+    textSpans.forEach(span => {
+      span.style.backgroundColor = ""
+      span.style.borderBottom = ""
+      span.style.borderRadius = ""
+    })
+
+    if (pageHighlights.length === 0) return
+
+    const colors: Record<string, [string, string]> = {
+      amber: ["rgba(245, 158, 11, 0.35)", "#d97706"],
+      blue: ["rgba(96, 165, 250, 0.35)", "#2563eb"],
+      pink: ["rgba(244, 114, 182, 0.32)", "#db2777"],
+      green: ["rgba(74, 222, 128, 0.32)", "#16a34a"],
+    }
+
+    // Build full text map across all text spans to handle multi-span selections accurately
+    const spanList = Array.from(textSpans)
+    let fullPageText = ""
+    const spanCharRanges: { span: HTMLSpanElement; start: number; end: number }[] = []
+
+    for (const span of spanList) {
+      const text = span.textContent || ""
+      const start = fullPageText.length
+      const end = start + text.length
+      spanCharRanges.push({ span, start, end })
+      fullPageText += text
+    }
+
+    const cleanFullText = fullPageText.replace(/\s+/g, " ")
+
+    pageHighlights.forEach(item => {
+      const quote = (item.selected_text || "").trim()
+      if (!quote) return
+
+      const colorPair = colors[item.color || "amber"] || colors.amber
+      const cleanQuote = quote.replace(/\s+/g, " ")
+
+      // If selection is a single word (e.g. 'the', 'chapter', 'swami')
+      const words = cleanQuote.split(/\s+/).filter(Boolean)
+      const isSingleWord = words.length === 1
+
+      // Strategy 1: Check full-page character offset matches
+      // Build safe regex: whole-word boundary if single word, or phrase boundary
+      let regex: RegExp | null = null
+      try {
+        if (isSingleWord) {
+          const escaped = words[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+          regex = new RegExp(`(?:^|[^\\p{L}\\p{N}_])(${escaped})(?:$|[^\\p{L}\\p{N}_])`, "gui")
+        } else {
+          const escapedWords = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("[\\s\\n]+")
+          regex = new RegExp(escapedWords, "gi")
+        }
+      } catch {
+        regex = null
+      }
+
+      let matchedSpans = new Set<HTMLSpanElement>()
+
+      if (regex) {
+        let match: RegExpExecArray | null
+        while ((match = regex.exec(fullPageText)) !== null) {
+          // If regex captured a group (like word without boundary punctuation), use group index
+          const matchText = match[1] || match[0]
+          const matchStart = match.index + (match[1] ? match[0].indexOf(match[1]) : 0)
+          const matchEnd = matchStart + matchText.length
+
+          for (const range of spanCharRanges) {
+            if (Math.max(range.start, matchStart) < Math.min(range.end, matchEnd)) {
+              matchedSpans.add(range.span)
+            }
+          }
+        }
+      }
+
+      // Strategy 2: If multi-span regex didn't catch due to PDF text chunking, fallback to individual span exact word match
+      if (matchedSpans.size === 0) {
+        spanList.forEach(span => {
+          const spanText = (span.textContent || "").trim()
+          if (!spanText) return
+
+          if (isSingleWord) {
+            // Strict exact match or bounded word match in this span ONLY
+            const cleanSpan = spanText.replace(/[.,/#!$%^&*;:{}=\-_`~()?"']/g, "")
+            if (cleanSpan.toLowerCase() === words[0].toLowerCase()) {
+              matchedSpans.add(span)
+            }
+          } else {
+            // Multi-word quote: only match if span is meaningfully part of the phrase
+            if (cleanQuote.toLowerCase().includes(spanText.toLowerCase()) && spanText.length >= 4) {
+              matchedSpans.add(span)
+            }
+          }
+        })
+      }
+
+      // Apply styling only to genuine matched spans
+      matchedSpans.forEach(span => {
+        span.style.backgroundColor = colorPair[0]
+        span.style.borderBottom = `2px solid ${colorPair[1]}`
+        span.style.borderRadius = "2px"
+      })
     })
   }, [highlights, pageNumber])
 
