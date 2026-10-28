@@ -66,6 +66,25 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
     activeConvIdRef.current = activeConvId
   }, [activeConvId])
 
+  // Load cached conversations on mount for 0ms instant display without white blank page
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem("anchor_cached_conversations")
+      if (cached) {
+        const parsed = JSON.parse(cached)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setConversations(parsed)
+          setLoading(false)
+          if (!activeConvIdRef.current) {
+            activeConvIdRef.current = parsed[0].id
+            setActiveConvId(parsed[0].id)
+            setActivePartner(parsed[0].partner)
+          }
+        }
+      }
+    } catch {}
+  }, [])
+
   const fetchConversations = async (isInitial = false) => {
     try {
       const res = await fetch("/api/chat/conversations")
@@ -74,6 +93,9 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
         const convList = data.conversations || []
         setConversations(convList)
         setRequests(data.incomingRequests || [])
+        try {
+          localStorage.setItem("anchor_cached_conversations", JSON.stringify(convList))
+        } catch {}
         
         const requested = new URLSearchParams(window.location.search).get("conversation")
         const selected = requested && convList.find((conversation: any) => conversation.id === requested)
@@ -310,7 +332,19 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
 
             {/* Conversations */}
             <div className={styles.sectionLabel}>💬 Active Chats</div>
-            {conversations.length === 0 ? (
+            {loading && conversations.length === 0 ? (
+              <div className={styles.convList}>
+                {[1, 2, 3, 4].map((n) => (
+                  <div key={n} className={styles.skeletonItem}>
+                    <div className={styles.skeletonAvatar} />
+                    <div className={styles.skeletonInfo}>
+                      <div className={styles.skeletonLineTitle} />
+                      <div className={styles.skeletonLineSub} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : conversations.length === 0 ? (
               <div className={styles.emptySidebar}>
                 <span>💌</span>
                 <p>No active conversations yet.</p>
@@ -514,9 +548,11 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
 
                 {/* Message Log */}
                 <div ref={msgContainerRef} className={styles.msgArea}>
-                  {msgLoading ? (
-                    <div style={{ textAlign: "center", color: "var(--color-text-muted)", margin: "auto" }}>
-                      Loading chat messages...
+                  {msgLoading && messages.length === 0 ? (
+                    <div className={styles.chatAreaSkeleton}>
+                      <div className={styles.skeletonBubbleRecv} />
+                      <div className={styles.skeletonBubbleSent} />
+                      <div className={styles.skeletonBubbleRecv} style={{ width: "40%" }} />
                     </div>
                   ) : messages.length === 0 ? (
                     <div style={{ textAlign: "center", color: "var(--color-text-muted)", margin: "auto" }}>

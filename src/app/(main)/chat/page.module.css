@@ -230,3 +230,72 @@
   font-size: 0.7rem;
   font-weight: 600;
 }
+
+/* Skeleton Loading states to completely eliminate blank screens */
+.skeletonItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  animation: pulseSkeleton 1.4s ease-in-out infinite;
+}
+
+@keyframes pulseSkeleton {
+  0% { opacity: 0.45; }
+  50% { opacity: 0.85; }
+  100% { opacity: 0.45; }
+}
+
+.skeletonAvatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.skeletonInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.skeletonLineTitle {
+  width: 65%;
+  height: 12px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.skeletonLineSub {
+  width: 90%;
+  height: 10px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.chatAreaSkeleton {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 1.5rem;
+  gap: 1.25rem;
+  animation: pulseSkeleton 1.4s ease-in-out infinite;
+}
+
+.skeletonBubbleSent {
+  align-self: flex-end;
+  width: 45%;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(2, 132, 199, 0.25);
+}
+
+.skeletonBubbleRecv {
+  align-self: flex-start;
+  width: 55%;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+}
