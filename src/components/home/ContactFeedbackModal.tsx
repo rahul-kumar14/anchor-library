@@ -1,18 +1,67 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import styles from "./ContactFeedbackModal.module.css"
 
-export default function ContactFeedbackModal() {
+const ADMIN_TARGET_EMAIL = "hpark4868@gmail.com"
+
+interface ContactFeedbackModalProps {
+  userEmail?: string | null
+}
+
+export default function ContactFeedbackModal({ userEmail }: ContactFeedbackModalProps) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState("")
-  const [email, setEmail] = useState("")
+  const [email, setEmail] = useState(userEmail || "")
   const [type, setType] = useState<"feedback" | "review" | "contact">("feedback")
   const [rating, setRating] = useState<number>(5)
   const [message, setMessage] = useState("")
   const [loading, setLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
+  const [submittedData, setSubmittedData] = useState<{
+    name: string
+    email: string
+    type: string
+    rating: number
+    message: string
+  } | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (userEmail && !email) {
+      setEmail(userEmail)
+    }
+  }, [userEmail, email])
+
+  const generateMailtoUrl = (data: {
+    name: string
+    email: string
+    type: string
+    rating: number
+    message: string
+  }) => {
+    const typeLabel =
+      data.type === "review"
+        ? "Community Review"
+        : data.type === "contact"
+        ? "General Contact Query"
+        : "Platform Feedback & Suggestion"
+
+    const subject = encodeURIComponent(`[Anchor Library] ${typeLabel} from ${data.name}`)
+    const body = encodeURIComponent(
+      `Hello Anchor Library Team,\n\n` +
+      `Here is a new ${typeLabel} submitted on the platform:\n\n` +
+      `----------------------------------------\n` +
+      `Reader Name: ${data.name}\n` +
+      `Reader Email: ${data.email}\n` +
+      `Category: ${typeLabel}\n` +
+      `Rating: ${data.rating} / 5 Stars\n` +
+      `----------------------------------------\n\n` +
+      `Message / Review:\n${data.message}\n\n` +
+      `Sent from Anchor Library Web Client\n`
+    )
+
+    return `mailto:${ADMIN_TARGET_EMAIL}?subject=${subject}&body=${body}`
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -23,37 +72,40 @@ export default function ContactFeedbackModal() {
     setLoading(true)
     setError(null)
 
+    const submission = {
+      name: name.trim(),
+      email: email.trim(),
+      type,
+      rating,
+      message: message.trim(),
+    }
+
     try {
-      const res = await fetch("/api/feedback", {
+      // 1. Save to database & admin notifications feed
+      await fetch("/api/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          email: email.trim(),
-          type,
-          rating,
-          message: message.trim(),
-        }),
+        body: JSON.stringify(submission),
       })
 
-      const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to submit.")
-      }
+      // 2. Set submission data for user action & trigger mailto
+      setSubmittedData(submission)
 
-      setSuccess(true)
-      setName("")
-      setEmail("")
-      setMessage("")
-      setTimeout(() => {
-        setSuccess(false)
-        setOpen(false)
-      }, 3500)
+      // Try automatic mailto launch
+      const mailtoUrl = generateMailtoUrl(submission)
+      window.location.href = mailtoUrl
     } catch (err: any) {
       setError(err.message || "Failed to submit. Please try again.")
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleReset = () => {
+    setSubmittedData(null)
+    setName("")
+    setMessage("")
+    setOpen(false)
   }
 
   return (
@@ -88,19 +140,35 @@ export default function ContactFeedbackModal() {
               <h2 className={styles.title}>Send Feedback &amp; Review</h2>
               <p className={styles.desc}>
                 Your message goes directly to our team at{" "}
-                <strong className={styles.mailHighlight}>hpark4868@gmail.com</strong>{" "}
-                and will be reviewed by admin.
+                <strong className={styles.mailHighlight}>{ADMIN_TARGET_EMAIL}</strong>{" "}
+                and will be saved in admin notifications.
               </p>
             </div>
 
-            {success ? (
+            {submittedData ? (
               <div className={styles.successState}>
                 <div className={styles.successIcon}>✓</div>
-                <h3>Thank you for your valuable feedback!</h3>
+                <h3>Feedback Recorded &amp; Ready to Send!</h3>
                 <p>
-                  Your message has been submitted and dispatched to{" "}
-                  <strong>hpark4868@gmail.com</strong>.
+                  Your review has been recorded. To ensure it lands directly into{" "}
+                  <strong>{ADMIN_TARGET_EMAIL}</strong>, click the button below to send it via your email app (Gmail / Outlook).
                 </p>
+
+                <div className={styles.successActions}>
+                  <a
+                    href={generateMailtoUrl(submittedData)}
+                    className={styles.mailActionBtn}
+                  >
+                    <span>📧</span> Send Now via Gmail / Mail App
+                  </a>
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    className={styles.doneBtn}
+                  >
+                    Done
+                  </button>
+                </div>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className={styles.form}>
@@ -176,7 +244,7 @@ export default function ContactFeedbackModal() {
                     disabled={loading}
                     className={styles.submitBtn}
                   >
-                    {loading ? "Sending..." : "Submit to hpark4868@gmail.com →"}
+                    {loading ? "Preparing message..." : `Submit to ${ADMIN_TARGET_EMAIL} →`}
                   </button>
                 </div>
               </form>

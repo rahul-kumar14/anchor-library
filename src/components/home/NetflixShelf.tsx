@@ -31,8 +31,8 @@ export default function NetflixShelf({ shelf }: NetflixShelfProps) {
   const checkScroll = () => {
     const el = scrollRef.current
     if (!el) return
-    setCanScrollLeft(el.scrollLeft > 20)
-    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 20)
+    setCanScrollLeft(el.scrollLeft > 15)
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 15)
   }
 
   useEffect(() => {
@@ -51,7 +51,7 @@ export default function NetflixShelf({ shelf }: NetflixShelfProps) {
   const scroll = (direction: "left" | "right") => {
     const el = scrollRef.current
     if (!el) return
-    const scrollAmount = Math.max(el.clientWidth * 0.75, 320)
+    const scrollAmount = Math.max(el.clientWidth * 0.72, 340)
     el.scrollBy({
       left: direction === "left" ? -scrollAmount : scrollAmount,
       behavior: "smooth",
@@ -75,6 +75,7 @@ export default function NetflixShelf({ shelf }: NetflixShelfProps) {
         <div className={styles.booksTrack}>
           {shelf.map(({ room, book }) => (
             <article className={styles.bookCard} key={room.id}>
+              {/* Cover area with uniform 2:3 ratio */}
               <Link
                 href={`/library/${book.id}`}
                 className={styles.coverWrap}
@@ -92,28 +93,34 @@ export default function NetflixShelf({ shelf }: NetflixShelfProps) {
                   </div>
                 )}
                 <div className={styles.coverGlare} />
-                <span className={styles.roomBadge}>
-                  <span>{room.icon}</span> {room.name}
-                </span>
+                <div className={styles.spineShadow} />
               </Link>
 
+              {/* Meta information with fixed heights to prevent misalignment */}
               <div className={styles.bookInfo}>
+                <Link
+                  href={`/study-rooms/${room.id}`}
+                  className={styles.roomBadge}
+                  title={`Room: ${room.name}`}
+                >
+                  <span className={styles.roomEmoji}>{room.icon}</span>
+                  <span className={styles.roomText}>{room.name}</span>
+                </Link>
+
                 <h3 className={styles.bookTitle}>
                   <Link href={`/library/${book.id}`} title={book.title}>
                     {book.title}
                   </Link>
                 </h3>
-                <p className={styles.bookAuthor}>{book.author || "Anchor Library"}</p>
+                
+                <p className={styles.bookAuthor} title={book.author || "Anchor Library"}>
+                  {book.author || "Anchor Library"}
+                </p>
+
                 <div className={styles.cardActions}>
                   <Link href={`/library/${book.id}`} className={styles.readBtn}>
-                    Read Now ↗
-                  </Link>
-                  <Link
-                    href={`/study-rooms/${room.id}`}
-                    className={styles.roomLink}
-                    title={`Join ${room.name}`}
-                  >
-                    Room ↗
+                    <span>Read Now</span>
+                    <span className={styles.btnArrow}>↗</span>
                   </Link>
                 </div>
               </div>

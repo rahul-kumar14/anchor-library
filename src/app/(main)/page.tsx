@@ -9,7 +9,8 @@ import styles from "./page.module.css"
 
 export default async function HomePage() {
   const supabase = await createClient()
-  const [{ count: bookCount }, { count: categoryCount, data: categories }, { data: books }] = await Promise.all([
+  const [{ data: { user } }, { count: bookCount }, { count: categoryCount, data: categories }, { data: books }] = await Promise.all([
+    supabase.auth.getUser(),
     supabase.from("books").select("id", { count: "exact", head: true }),
     supabase.from("categories").select("id,name", { count: "exact" }),
     supabase.from("books").select("id,title,author,cover_url,cover_image_url,description_hindi,language,genre,category_id").order("is_featured", { ascending: false }).order("id").limit(500),
@@ -58,7 +59,7 @@ export default async function HomePage() {
       {/* 2. STATS & ATTRIBUTES ROW */}
       <AnimatedFacts bookCount={bookCount} categoryCount={categoryCount} roomCount={9} />
 
-      {/* 3. STUDY ROOMS SECTION */}
+      {/* 3. STUDY ROOMS SECTION - Individual Visual Identities with Dedicated Atmospheric Library Images */}
       <section className={styles.workflow} id="study-rooms">
         <div className={styles.sectionHead}>
           <div>
@@ -72,27 +73,84 @@ export default async function HomePage() {
           </Link>
         </div>
         <p className={styles.roomIntro}>
-          Different spaces for different goals. Join a room and read alongside peers who share your focus.
+          Different spaces for different goals. Each room carries its own unique atmosphere, focus rules, and active reading community.
         </p>
 
-        {/* 5 Rooms: Hindi Literature & English Literature at #1 & #2, with enhanced hover animations */}
+        {/* 5 Rooms with dedicated library imagery, distinct color moods, and subtle faded background layers */}
         <div className={styles.roomGrid}>
           {[
-            { id: "reading", icon: "📖", title: "Hindi Literature & Books", text: "Premchand, poetry & classic fiction", art: "five" },
-            { id: "english-lit", icon: "📚", title: "English Literature", text: "World classics, essays & modern prose", art: "one" },
-            { id: "silent", icon: "🔕", title: "Silent Study", text: "Zero distraction. Pure quiet focus.", art: "two" },
-            { id: "pomodoro", icon: "🍅", title: "Pomodoro Focus", text: "25 min reading, 5 min intervals", art: "three" },
-            { id: "night-owl", icon: "🌙", title: "Night Owl Study", text: "Late night grind with active readers", art: "four" },
+            {
+              id: "reading",
+              icon: "📖",
+              title: "Hindi Literature & Books",
+              text: "Premchand, poetry & classic fiction",
+              mood: "roomHindi",
+              image: "/images/landing/room-hindi-lit.jpg",
+              badge: "Heritage Room",
+              badgeColor: "#f59e0b",
+            },
+            {
+              id: "english-lit",
+              icon: "📚",
+              title: "English Literature",
+              text: "World classics, essays & modern prose",
+              mood: "roomEnglish",
+              image: "/images/landing/room-english-lit.jpg",
+              badge: "Classics Room",
+              badgeColor: "#10b981",
+            },
+            {
+              id: "silent",
+              icon: "🔕",
+              title: "Silent Study",
+              text: "Zero distraction. Pure quiet focus.",
+              mood: "roomSilent",
+              image: "/images/landing/room-silent-study.jpg",
+              badge: "Deep Silence",
+              badgeColor: "#818cf8",
+            },
+            {
+              id: "pomodoro",
+              icon: "🍅",
+              title: "Pomodoro Focus",
+              text: "25 min reading, 5 min intervals",
+              mood: "roomPomodoro",
+              image: "/images/landing/room-pomodoro-focus.jpg",
+              badge: "Timed Interval",
+              badgeColor: "#f87171",
+            },
+            {
+              id: "night-owl",
+              icon: "🌙",
+              title: "Night Owl Study",
+              text: "Late night grind with active readers",
+              mood: "roomNightOwl",
+              image: "/images/landing/room-night-owl.jpg",
+              badge: "After Hours",
+              badgeColor: "#a78bfa",
+            },
           ].map(room => (
             <Link
               key={room.id}
               href={`/study-rooms/${room.id}`}
-              className={`${styles.roomCard} ${styles[room.art]}`}
+              className={`${styles.roomCard} ${styles[room.mood]}`}
             >
-              <span className={styles.roomArt} aria-hidden="true" />
+              {/* Dedicated Library Photo Background with cinematic dark gradient overlay */}
+              <div
+                className={styles.roomArtCover}
+                style={{ backgroundImage: `url("${room.image}")` }}
+                aria-hidden="true"
+              />
+              <div className={styles.roomArtGradient} aria-hidden="true" />
+              
               <div className={styles.roomTop}>
-                <span className={styles.roomIcon}>{room.icon}</span>
-                <span className={styles.activePill}>Live Room</span>
+                <span className={styles.roomIconWrap}>{room.icon}</span>
+                <span
+                  className={styles.roomMoodPill}
+                  style={{ borderColor: room.badgeColor, color: room.badgeColor }}
+                >
+                  {room.badge}
+                </span>
               </div>
               <div className={styles.roomBottom}>
                 <strong>{room.title}</strong>
@@ -168,51 +226,109 @@ export default async function HomePage() {
         <NetflixShelf shelf={shelf} />
       </section>
 
-      {/* 6. READING ROOM COMPANY SECTION */}
+      {/* 6. PARTNER & STUDY ROOM EXPERIENCE (Interactive Visual Showcase) */}
       <section className={styles.company}>
-        <div>
+        <div className={styles.companyCopy}>
           <p className={`${styles.eyebrow} ${styles.animatedEyebrow}`}>
             <span className={styles.signal} aria-hidden="true" /> A READING ROOM, NOT A FEED
           </p>
           <h2 className={styles.headingUnderline}>Company when you want it.<br /><em>Quiet when you need it.</em></h2>
-          <p>
-            Enter a camera-free room for shared focus, or start a private one-to-one conversation after an accepted partner request. Your reading history, bookmarks, and private notes stay completely yours.
+          <p className={styles.companyIntro}>
+            Reading alone often ends in scrolling. In Anchor Library, you see silent comrades reading beside you. Whenever you want discussion, send a gentle partner request for private 1-on-1 book notes exchange.
           </p>
-          <Link href="/study-rooms" className={styles.primary}>
-            Take your place <span className={styles.primaryArrow}>→</span>
-          </Link>
-        </div>
-        <div className={styles.roomChoices}>
-          {[
-            { icon: "📖", name: "Hindi Literature & Books", desc: "Premchand, poetry & classic fiction.", id: "reading" },
-            { icon: "📚", name: "English Literature", desc: "Classic novels, prose & world literature.", id: "english-lit" },
-            { icon: "🔕", name: "Silent Study", desc: "A little company. A lot of quiet.", id: "silent" },
-            { icon: "🍅", name: "Pomodoro Focus", desc: "Make one focused 25-minute block count.", id: "pomodoro" },
-            { icon: "💻", name: "Coding & DSA", desc: "Algorithms, development & deep technical work.", id: "coding" },
-          ].map(room => (
-            <Link key={room.id} href={"/study-rooms/" + room.id} className={styles.roomChoiceItem}>
-              <span className={styles.choiceIcon}>{room.icon}</span>
+          <div className={styles.partnerFeatureList}>
+            <div className={styles.partnerFeatureItem}>
+              <span className={styles.featIcon}>🔒</span>
               <div>
-                <strong>{room.name}</strong>
-                <p>{room.desc}</p>
+                <strong>Zero Camera Intrusions</strong>
+                <span>Preserve your complete comfort and privacy without pressure.</span>
               </div>
-              <span className={styles.choiceArrow}>↗</span>
+            </div>
+            <div className={styles.partnerFeatureItem}>
+              <span className={styles.featIcon}>🤝</span>
+              <div>
+                <strong>Mutual Partner Requests</strong>
+                <span>1-on-1 chats require approval from both readers before initiating.</span>
+              </div>
+            </div>
+            <div className={styles.partnerFeatureItem}>
+              <span className={styles.featIcon}>📝</span>
+              <div>
+                <strong>Synchronized Book Discussions</strong>
+                <span>Discuss chapters, share quotes, and debate perspectives in real-time.</span>
+              </div>
+            </div>
+          </div>
+          <div className={styles.partnerActionRow}>
+            <Link href="/chat" className={styles.primary}>
+              Find a reading partner <span className={styles.primaryArrow}>→</span>
             </Link>
-          ))}
+            <Link href="/study-rooms" className={styles.secondary}>
+              Explore virtual rooms ↗
+            </Link>
+          </div>
+        </div>
+
+        {/* Visual Mockup Demonstration: 1-on-1 Partner Reading Session */}
+        <div className={styles.partnerShowcaseWrap}>
+          <div className={styles.partnerLiveCard}>
+            <div className={styles.liveCardHeader}>
+              <div className={styles.partnerUser}>
+                <div className={styles.partnerAvatarBadge}>📖</div>
+                <div>
+                  <strong>Silent Study Room</strong>
+                  <span className={styles.sessionCount}>• 4 readers active now</span>
+                </div>
+              </div>
+              <span className={styles.matchedBadge}>Partner Session Active</span>
+            </div>
+
+            {/* Chat Demonstration between two readers */}
+            <div className={styles.demoChatViewport}>
+              <div className={styles.demoChatBubblePeer}>
+                <div className={styles.peerAvatar}>A</div>
+                <div className={styles.bubbleContent}>
+                  <span className={styles.senderName}>Aarav (UPSC Aspirant)</span>
+                  <p>Just finished Chapter 3 of <em>The Psychology of Money</em>. That compounding analogy on page 42 is unbelievable!</p>
+                  <span className={styles.msgTime}>20:42</span>
+                </div>
+              </div>
+
+              <div className={styles.demoChatBubbleYou}>
+                <div className={styles.bubbleContentYou}>
+                  <p>Same here! I highlighted the entire paragraph about staying wealthy vs getting wealthy. Makes total sense.</p>
+                  <span className={styles.msgTimeYou}>20:44 • Read</span>
+                </div>
+              </div>
+
+              <div className={styles.demoQuoteShare}>
+                <span className={styles.shareIcon}>📌 Shared Highlight</span>
+                <p>“Planning is good, but the most important part of every plan is to plan on the plan not going according to plan.”</p>
+                <small>— Page 68 • Notes saved to your library</small>
+              </div>
+            </div>
+
+            <div className={styles.liveCardFoot}>
+              <span className={styles.syncStatus}>✨ Reading together in real-time</span>
+              <Link href="/chat" className={styles.cardChatBtn}>
+                Say hello →
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* 7. READER REVIEWS SECTION (Real Indian Reader Reviews with 5-star ratings) */}
+      {/* 7. READER REVIEWS SECTION (Honest Community Voices without fake verification claims) */}
       <section className={styles.stories}>
         <div className={styles.storiesHeader}>
           <div>
             <p className={`${styles.eyebrow} ${styles.animatedEyebrow}`}>
-              <span className={styles.signal} aria-hidden="true" /> GENUINE READER EXPERIENCES
+              <span className={styles.signal} aria-hidden="true" /> COMMUNITY VOICES
             </p>
-            <h2 className={styles.headingUnderline}>Loved by readers across India.</h2>
+            <h2 className={styles.headingUnderline}>Thoughts from our reading circle.</h2>
           </div>
           <p className={styles.storiesSub}>
-            Real thoughts from students, literature lovers, and working professionals using Anchor Library daily.
+            Real experiences from students, literature enthusiasts, and daily readers using Anchor Library.
           </p>
         </div>
 
@@ -225,7 +341,7 @@ export default async function HomePage() {
               avatar: "AS",
               rating: 5,
               text: "Silent Study room me baithe rehne se jo focus banta hai wo YouTube live streams se kahi zyada real lagta hai. Built-in Hindi literature section is pure gold!",
-              tag: "🔕 Silent Study",
+              roomFocus: "Silent Study Room",
             },
             {
               name: "Priya Nair",
@@ -234,7 +350,7 @@ export default async function HomePage() {
               avatar: "PN",
               rating: 5,
               text: "Pomodoro timer aur notes feature ne meri reading habit revive kar di. Shaam ko 50 minutes bina distraction ke novel padhna ab meri daily routine hai.",
-              tag: "🍅 Pomodoro Focus",
+              roomFocus: "Pomodoro Focus Room",
             },
             {
               name: "Rohan Verma",
@@ -243,16 +359,16 @@ export default async function HomePage() {
               avatar: "RV",
               rating: 5,
               text: "Premchand ji ki kavitayein aur Godan padhna itna smooth experience kabhi nahi raha. Highlighting aur bookmarks sidhe save ho jate hain. Absolutely brilliant platform!",
-              tag: "📖 Hindi Literature",
+              roomFocus: "Hindi Literature Room",
             },
             {
               name: "Ananya Mukherjee",
               city: "Kolkata",
-              role: "English Professor",
+              role: "English Literature Reader",
               avatar: "AM",
               rating: 5,
-              text: "The aesthetic of Anchor Library makes you want to open a classic and read. The camera-free presence feels gentle and truly respects student privacy.",
-              tag: "📚 English Literature",
+              text: "The aesthetic of Anchor Library makes you want to open a classic and read. The camera-free presence feels gentle and truly respects reader comfort.",
+              roomFocus: "English Literature Room",
             },
           ].map(review => (
             <article key={review.name} className={styles.reviewCard}>
@@ -266,8 +382,8 @@ export default async function HomePage() {
               </div>
               <p className={styles.reviewText}>"{review.text}"</p>
               <div className={styles.reviewCardFoot}>
-                <span className={styles.reviewTag}>{review.tag}</span>
-                <span className={styles.verifiedBadge}>✓ Verified Reader</span>
+                <span className={styles.reviewTag}>{review.roomFocus}</span>
+                <span className={styles.communityMemberBadge}>Active Reader</span>
               </div>
             </article>
           ))}
@@ -285,15 +401,19 @@ export default async function HomePage() {
         </p>
         
         <div className={styles.closingActions}>
-          <Link href="/register" className={styles.primary}>
-            Join Anchor Library Free <span className={styles.primaryArrow}>→</span>
-          </Link>
-          <ContactFeedbackModal />
+          {!user && (
+            <Link href="/register" className={styles.primary}>
+              Join Anchor Library Free <span className={styles.primaryArrow}>→</span>
+            </Link>
+          )}
+          <ContactFeedbackModal userEmail={user?.email} />
         </div>
 
-        <p className={styles.closingSub}>
-          Already part of the library? <Link href="/login">Come on in ↗</Link>
-        </p>
+        {!user && (
+          <p className={styles.closingSub}>
+            Already part of the library? <Link href="/login">Come on in ↗</Link>
+          </p>
+        )}
       </section>
 
       {/* 9. FOOTER */}

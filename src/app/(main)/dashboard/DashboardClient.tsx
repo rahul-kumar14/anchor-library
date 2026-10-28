@@ -149,6 +149,12 @@ export default function DashboardClient({
 
           {/* Card 2: Books in Progress (Scrolls down to progress list) */}
           <button type="button" onClick={handleProgressClick} className={`${styles.ambientCard} ${styles.clickableCard}`}>
+            <div
+              className={styles.cardArtCover}
+              style={{ backgroundImage: `url('/images/dashboard/dash-in-progress.jpg')` }}
+              aria-hidden="true"
+            />
+            <div className={styles.cardArtGradient} aria-hidden="true" />
             <div className={styles.cardTop}>
               <div className={styles.circleIconBadge}>📚</div>
               <div className={styles.cardHeaderInfo}>
@@ -161,6 +167,12 @@ export default function DashboardClient({
 
           {/* Card 3: Books Finished (Clicking reveals and scrolls down to Finished Showcase) */}
           <button type="button" onClick={handleFinishedClick} className={`${styles.ambientCard} ${styles.clickableCard}`}>
+            <div
+              className={styles.cardArtCover}
+              style={{ backgroundImage: `url('/images/dashboard/dash-finished.jpg')` }}
+              aria-hidden="true"
+            />
+            <div className={styles.cardArtGradient} aria-hidden="true" />
             <div className={styles.cardTop}>
               <div className={styles.circleIconBadge}>📖</div>
               <div className={styles.cardHeaderInfo}>
@@ -173,6 +185,12 @@ export default function DashboardClient({
 
           {/* Card 4: Room Study Points (Scrolls down to Rewards) */}
           <button type="button" onClick={handleRewardsClick} className={`${styles.ambientCard} ${styles.clickableCard}`}>
+            <div
+              className={styles.cardArtCover}
+              style={{ backgroundImage: `url('/images/dashboard/dash-points.jpg')` }}
+              aria-hidden="true"
+            />
+            <div className={styles.cardArtGradient} aria-hidden="true" />
             <div className={styles.cardTop}>
               <div className={styles.circleIconBadge}>⚡</div>
               <div className={styles.cardHeaderInfo}>
@@ -185,6 +203,12 @@ export default function DashboardClient({
 
           {/* Card 5: Achievements Unlocked (Scrolls to Badges) */}
           <button type="button" onClick={handleAchievementsClick} className={`${styles.ambientCard} ${styles.clickableCard}`}>
+            <div
+              className={styles.cardArtCover}
+              style={{ backgroundImage: `url('/images/dashboard/dash-achievements.jpg')` }}
+              aria-hidden="true"
+            />
+            <div className={styles.cardArtGradient} aria-hidden="true" />
             <div className={styles.cardTop}>
               <div className={styles.circleIconBadge}>🏆</div>
               <div className={styles.cardHeaderInfo}>

@@ -253,6 +253,52 @@
   line-height: 1.6;
 }
 
+.successActions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.mailActionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 13px 20px;
+  background: #e5c46d;
+  color: #071912;
+  font-size: 15px;
+  font-weight: 700;
+  border-radius: 8px;
+  text-decoration: none;
+  box-shadow: 0 8px 24px rgba(229, 196, 109, 0.35);
+  transition: all 0.25s ease;
+}
+
+.mailActionBtn:hover {
+  background: #f7e09b;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(229, 196, 109, 0.45);
+}
+
+.doneBtn {
+  padding: 10px;
+  background: transparent;
+  border: 1px solid rgba(225, 199, 125, 0.3);
+  border-radius: 8px;
+  color: #c9d5c6;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.doneBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
 @media (max-width: 580px) {
   .row {
     grid-template-columns: 1fr;

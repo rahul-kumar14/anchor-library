@@ -136,13 +136,45 @@
   transform: translateY(-4px);
   border-color: rgba(245, 158, 11, 0.6);
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55), 0 0 20px rgba(245, 158, 11, 0.22);
-  background: linear-gradient(135deg, rgba(40, 22, 9, 0.9) 0%, rgba(22, 11, 4, 0.95) 100%);
+}
+
+.cardArtCover {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  opacity: 0.58;
+  filter: saturate(1.1) contrast(1.15) brightness(0.9);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.ambientCard:hover .cardArtCover {
+  transform: scale(1.08);
+  opacity: 0.72;
+}
+
+.cardArtGradient {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  background: linear-gradient(
+    145deg,
+    rgba(18, 9, 3, 0.45) 0%,
+    rgba(12, 6, 2, 0.65) 55%,
+    rgba(8, 4, 1, 0.82) 100%
+  );
+  pointer-events: none;
 }
 
 .cardTop {
   display: flex;
   align-items: flex-start;
   gap: 12px;
+  position: relative;
+  z-index: 2;
 }
 
 .circleIconBadge {
