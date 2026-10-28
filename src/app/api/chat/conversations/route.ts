@@ -14,22 +14,44 @@ export async function GET(_req: NextRequest) {
     const ids = mine.map(p => p.conversation_id)
     let conversations: any[] = []
     if (ids.length) {
-      const { data: partners, error: partnerError } = await admin.from("conversation_participants")
-        .select("conversation_id,profiles:user_id(id,username,full_name,avatar_url)")
-        .in("conversation_id", ids).neq("user_id", user.id)
-      if (partnerError) throw partnerError
       const since = new Date(Date.now() - 7 * 86400000).toISOString()
-      conversations = await Promise.all(mine.map(async membership => {
-        const { data: last, error: messageError } = await admin.from("messages").select("content,created_at,sender_id")
-          .eq("conversation_id", membership.conversation_id).eq("is_deleted", false).gte("created_at", since)
-          .order("created_at", { ascending: false }).limit(1).maybeSingle()
-        if (messageError) throw messageError
+      const [{ data: partners, error: partnerError }, { data: recentMessages, error: msgError }] = await Promise.all([
+        admin.from("conversation_participants")
+          .select("conversation_id,last_read_at,profiles:user_id(id,username,full_name,avatar_url)")
+          .in("conversation_id", ids).neq("user_id", user.id),
+        admin.from("messages")
+          .select("conversation_id,content,created_at,sender_id")
+          .in("conversation_id", ids)
+          .eq("is_deleted", false)
+          .gte("created_at", since)
+          .order("created_at", { ascending: false })
+          .limit(200)
+      ])
+      if (partnerError) throw partnerError
+      if (msgError) throw msgError
+
+      // Group latest message by conversation_id in memory (super fast)
+      const lastMsgMap = new Map<string, any>()
+      for (const m of (recentMessages || [])) {
+        if (!lastMsgMap.has(m.conversation_id)) {
+          lastMsgMap.set(m.conversation_id, m)
+        }
+      }
+
+      conversations = mine.map(membership => {
+        const last = lastMsgMap.get(membership.conversation_id) || null
+        const partnerRecord = partners?.find(p => p.conversation_id === membership.conversation_id)
+        const partnerProfile = partnerRecord?.profiles ? {
+          ...(partnerRecord.profiles as any),
+          last_active: partnerRecord.last_read_at || null
+        } : null
         return {
-          id: membership.conversation_id, partner: partners?.find(p => p.conversation_id === membership.conversation_id)?.profiles || null,
+          id: membership.conversation_id,
+          partner: partnerProfile,
           last_message: last,
           has_unread: !!last && last.sender_id !== user.id && (!membership.last_read_at || Date.parse(last.created_at) > Date.parse(membership.last_read_at)),
         }
-      }))
+      })
       conversations.sort((a, b) => (b.last_message?.created_at || "").localeCompare(a.last_message?.created_at || ""))
     }
     const [{ data: incoming, error: incomingError }, { data: outgoing, error: outgoingError }] = await Promise.all([

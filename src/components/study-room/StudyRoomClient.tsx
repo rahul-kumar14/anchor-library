@@ -77,6 +77,9 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   const [unreadMsgBanner, setUnreadMsgBanner] = useState<{ senderName: string; text: string; conversationId: string; partner: any } | null>(null)
   const lastKnownMsgIdsRef = useRef<Record<string, string>>({})
 
+  // In-memory cache for study room and direct chats (instant switching without blank screen)
+  const roomChatCacheRef = useRef<Record<string, any[]>>({})
+
   // Periodically check for incoming chat requests and new private messages
   useEffect(() => {
     if (!user) return
@@ -114,7 +117,8 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
       } catch {}
     }
     checkActivity()
-    const timer = setInterval(checkActivity, 3500)
+    // Sane poll interval (10s instead of 3.5s) to eliminate constant CPU/network lag
+    const timer = setInterval(checkActivity, 10000)
     return () => clearInterval(timer)
   }, [user, chatMode, activeDirectChat?.conversationId])
 
@@ -126,7 +130,9 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
       const res = await fetch(`/api/chat/messages?conversation_id=${convId}`)
       if (res.ok) {
         const data = await res.json()
-        if (convId === currentConvIdRef.current) setDbMessages(data.messages || [])
+        const msgs = data.messages || []
+        roomChatCacheRef.current[convId] = msgs
+        if (convId === currentConvIdRef.current) setDbMessages(msgs)
       }
     } catch (err) {
       console.error("Error loading chat messages:", err)
@@ -136,12 +142,49 @@ export default function StudyRoomClient({ room, roomId }: { room: any; roomId: s
   }
 
   useEffect(() => {
-    setDbMessages([])
     setNewMessage("")
-    loadMessages(currentConvId)
-    // 3s interval poll fallback so messages never disappear and stay updated
-    const timer = setInterval(() => loadMessages(currentConvId, true), 3000)
-    return () => clearInterval(timer)
+    if (!currentConvId) return
+
+    // Show cached messages instantly (0ms lag when switching between Room Chat and Direct Partner)
+    const cached = roomChatCacheRef.current[currentConvId]
+    if (cached) {
+      setDbMessages(cached)
+      setLoadingMessages(false)
+      loadMessages(currentConvId, true)
+    } else {
+      setDbMessages([])
+      loadMessages(currentConvId, false)
+    }
+
+    // Connect Supabase Realtime channel for instant real-time delivery
+    const channel = supabase
+      .channel(`study_chat:${currentConvId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `conversation_id=eq.${currentConvId}`,
+        },
+        (payload) => {
+          if (currentConvIdRef.current !== currentConvId) return
+          setDbMessages((prev) => {
+            if (prev.some((m) => m.id === payload.new.id)) return prev
+            const updated = [...prev, payload.new]
+            roomChatCacheRef.current[currentConvId] = updated
+            return updated
+          })
+        }
+      )
+      .subscribe()
+
+    // Light fallback poll (15s instead of 3s)
+    const timer = setInterval(() => loadMessages(currentConvId, true), 15000)
+    return () => {
+      supabase.removeChannel(channel)
+      clearInterval(timer)
+    }
   }, [currentConvId, user?.id])
 
 

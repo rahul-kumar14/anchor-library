@@ -19,8 +19,11 @@ export async function GET(req: NextRequest) {
     let partner = null
     if (!isRoomConversation(id)) {
       const { data: other } = await admin.from("conversation_participants")
-        .select("profiles:user_id(id,username,full_name,avatar_url)").eq("conversation_id", id).neq("user_id", user.id).limit(1).maybeSingle()
-      partner = other?.profiles || null
+        .select("last_read_at,profiles:user_id(id,username,full_name,avatar_url)").eq("conversation_id", id).neq("user_id", user.id).limit(1).maybeSingle()
+      partner = other?.profiles ? {
+        ...(other.profiles as any),
+        last_active: other.last_read_at || null
+      } : null
       // Reading a private thread marks only this user's participation as read.
       const { error: readError } = await admin.from("conversation_participants")
         .update({ last_read_at: new Date().toISOString() }).eq("conversation_id", id).eq("user_id", user.id)

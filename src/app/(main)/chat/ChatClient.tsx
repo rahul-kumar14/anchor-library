@@ -23,12 +23,50 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
   const msgContainerRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
 
+  // Hidden chats persisted in localStorage
+  const [hiddenConvIds, setHiddenConvIds] = useState<string[]>([])
+  const [showHiddenSection, setShowHiddenSection] = useState(false)
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; convId: string; isHidden: boolean } | null>(null)
+
+  // Load hidden conversations from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("anchor_hidden_chats")
+      if (saved) {
+        setHiddenConvIds(JSON.parse(saved))
+      }
+    } catch {}
+  }, [])
+
+  const toggleHideChat = (convId: string) => {
+    setHiddenConvIds((prev) => {
+      const exists = prev.includes(convId)
+      const next = exists ? prev.filter((id) => id !== convId) : [...prev, convId]
+      try {
+        localStorage.setItem("anchor_hidden_chats", JSON.stringify(next))
+      } catch {}
+      return next
+    })
+    setContextMenu(null)
+  }
+
+  // Close context menu on outside click
+  useEffect(() => {
+    const handleCloseContext = () => setContextMenu(null)
+    window.addEventListener("click", handleCloseContext)
+    return () => window.removeEventListener("click", handleCloseContext)
+  }, [])
+
+  // Instant client-side message cache for 0ms chat switching
+  const messagesCacheRef = useRef<Record<string, { messages: any[]; partner?: any }>>({})
+
   // Keep activeConvIdRef in sync with state
   useEffect(() => {
     activeConvIdRef.current = activeConvId
   }, [activeConvId])
 
-  const fetchConversations = async () => {
+  const fetchConversations = async (isInitial = false) => {
     try {
       const res = await fetch("/api/chat/conversations")
       if (res.ok) {
@@ -43,6 +81,10 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
           activeConvIdRef.current = selected.id
           setActiveConvId(selected.id)
           setActivePartner(selected.partner)
+        } else if (!activeConvIdRef.current && isInitial && convList.length > 0) {
+          activeConvIdRef.current = convList[0].id
+          setActiveConvId(convList[0].id)
+          setActivePartner(convList[0].partner)
         }
       }
     } catch (err) {
@@ -52,9 +94,24 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
     }
   }
 
+  // Helper to format last active status
+  const formatLastActive = (lastActiveDate?: string | null) => {
+    if (!lastActiveDate) return "Active recently"
+    const diffMs = Date.now() - new Date(lastActiveDate).getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    if (diffMins < 3) return "Online now"
+    if (diffMins < 60) return `Active ${diffMins}m ago`
+    const diffHours = Math.floor(diffMins / 60)
+    if (diffHours < 24) return `Active ${diffHours}h ago`
+    const diffDays = Math.floor(diffHours / 24)
+    if (diffDays === 1) return "Active yesterday"
+    return `Active ${diffDays}d ago`
+  }
+
   useEffect(() => {
-    fetchConversations()
-    const timer = setInterval(fetchConversations, 5000)
+    fetchConversations(true)
+    // Sane poll interval (12s) as fallback to realtime
+    const timer = setInterval(() => fetchConversations(false), 12000)
     return () => clearInterval(timer)
   }, [])
 
@@ -64,8 +121,13 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
       const res = await fetch(`/api/chat/messages?conversation_id=${convId}`)
       if (res.ok) {
         const data = await res.json()
+        const fetchedMessages = data.messages || []
+        messagesCacheRef.current[convId] = {
+          messages: fetchedMessages,
+          partner: data.partner || messagesCacheRef.current[convId]?.partner,
+        }
         if (activeConvIdRef.current === convId) {
-          setMessages(data.messages || [])
+          setMessages(fetchedMessages)
           if (data.partner) setActivePartner(data.partner)
         }
       }
@@ -77,10 +139,20 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
   }
 
   useEffect(() => {
-    setMessages([])
     setSendError("")
     if (activeConvId) {
-      fetchMessages(activeConvId)
+      // Check cache first for INSTANT 0ms display
+      const cached = messagesCacheRef.current[activeConvId]
+      if (cached) {
+        setMessages(cached.messages)
+        if (cached.partner) setActivePartner(cached.partner)
+        setMsgLoading(false)
+        // Background silent revalidate
+        fetchMessages(activeConvId, true)
+      } else {
+        setMessages([])
+        fetchMessages(activeConvId, false)
+      }
       
       const channel = supabase
         .channel(`chat_page:${activeConvId}`)
@@ -96,13 +168,18 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
             if (activeConvIdRef.current !== activeConvId) return
             setMessages((prev) => {
               if (prev.some((m) => m.id === payload.new.id)) return prev
-              return [...prev, payload.new]
+              const updated = [...prev, payload.new]
+              if (messagesCacheRef.current[activeConvId]) {
+                messagesCacheRef.current[activeConvId].messages = updated
+              }
+              return updated
             })
           }
         )
         .subscribe()
 
-      const timer = setInterval(() => fetchMessages(activeConvId, true), 3000)
+      // Light fallback poll (15s instead of 3s) since Realtime WebSocket is listening
+      const timer = setInterval(() => fetchMessages(activeConvId, true), 15000)
       return () => {
         supabase.removeChannel(channel)
         clearInterval(timer)
@@ -241,37 +318,134 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
               </div>
             ) : (
               <div className={styles.convList}>
-                {conversations.map((c: any) => {
-                  const isActive = c.id === activeConvId
-                  const partner = c.partner
-                  return (
-                    <div
-                      key={c.id}
-                      className={`${styles.convItem} ${isActive ? styles.convItemActive : ""}`}
-                      onClick={() => {
-                        activeConvIdRef.current = c.id
-                        setActiveConvId(c.id)
-                        setActivePartner(partner)
-                      }}
-                    >
-                      <div className="relative">
-                        <div className="avatar-placeholder" style={{ width: 40, height: 40, fontSize: 14 }}>
-                          {(partner?.username?.[0] || "U").toUpperCase()}
+                {conversations
+                  .filter((c: any) => !hiddenConvIds.includes(c.id))
+                  .map((c: any) => {
+                    const isActive = c.id === activeConvId
+                    const partner = c.partner
+                    const isOnline = partner?.last_active ? (Date.now() - new Date(partner.last_active).getTime()) < 3 * 60000 : false
+                    return (
+                      <div
+                        key={c.id}
+                        className={`${styles.convItem} ${isActive ? styles.convItemActive : ""}`}
+                        onClick={() => {
+                          activeConvIdRef.current = c.id
+                          setActiveConvId(c.id)
+                          setActivePartner(partner)
+                        }}
+                        onContextMenu={(e) => {
+                          e.preventDefault()
+                          setContextMenu({
+                            x: e.clientX,
+                            y: e.clientY,
+                            convId: c.id,
+                            isHidden: false,
+                          })
+                        }}
+                        title="Right-click for options (Hide chat)"
+                      >
+                        <div style={{ position: "relative", flexShrink: 0 }}>
+                          <div className="avatar-placeholder" style={{ width: 40, height: 40, fontSize: 14 }}>
+                            {(partner?.username?.[0] || "U").toUpperCase()}
+                          </div>
+                          <span className={isOnline ? styles.onlineDot : styles.offlineDot} />
                         </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                            <div className={styles.convName}>{partner?.full_name || partner?.username || "Study Partner"}</div>
+                            <span style={{ fontSize: "0.68rem", color: isOnline ? "#22c55e" : "var(--color-text-muted)" }}>
+                              {isOnline ? "Online" : formatLastActive(partner?.last_active)}
+                            </span>
+                          </div>
+                          <div className={styles.convPreview}>
+                            {c.last_message?.content || "Tap to chat"}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
 
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div className={styles.convName}>{partner?.full_name || partner?.username || "Study Partner"}</div>
-                        <div className={styles.convPreview}>
-                          {c.last_message?.content || "Tap to chat"}
-                        </div>
-                      </div>
+                {/* Hidden Conversations Section */}
+                {hiddenConvIds.length > 0 && (
+                  <>
+                    <div
+                      className={styles.hiddenToggleBar}
+                      onClick={() => setShowHiddenSection(!showHiddenSection)}
+                    >
+                      <span>🔒 Hidden Chats <span className={styles.hiddenBadge}>{hiddenConvIds.length}</span></span>
+                      <span>{showHiddenSection ? "▲ Hide" : "▼ Show"}</span>
                     </div>
-                  )
-                })}
+
+                    {showHiddenSection &&
+                      conversations
+                        .filter((c: any) => hiddenConvIds.includes(c.id))
+                        .map((c: any) => {
+                          const isActive = c.id === activeConvId
+                          const partner = c.partner
+                          const isOnline = partner?.last_active ? (Date.now() - new Date(partner.last_active).getTime()) < 3 * 60000 : false
+                          return (
+                            <div
+                              key={c.id}
+                              className={`${styles.convItem} ${isActive ? styles.convItemActive : ""}`}
+                              style={{ opacity: 0.78, background: "rgba(0,0,0,0.15)" }}
+                              onClick={() => {
+                                activeConvIdRef.current = c.id
+                                setActiveConvId(c.id)
+                                setActivePartner(partner)
+                              }}
+                              onContextMenu={(e) => {
+                                e.preventDefault()
+                                setContextMenu({
+                                  x: e.clientX,
+                                  y: e.clientY,
+                                  convId: c.id,
+                                  isHidden: true,
+                                })
+                              }}
+                              title="Right-click to Unhide"
+                            >
+                              <div style={{ position: "relative", flexShrink: 0 }}>
+                                <div className="avatar-placeholder" style={{ width: 40, height: 40, fontSize: 14 }}>
+                                  {(partner?.username?.[0] || "U").toUpperCase()}
+                                </div>
+                                <span className={isOnline ? styles.onlineDot : styles.offlineDot} />
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                                  <div className={styles.convName}>{partner?.full_name || partner?.username || "Study Partner"}</div>
+                                  <span style={{ fontSize: "0.68rem", color: "var(--color-text-muted)" }}>
+                                    (Hidden)
+                                  </span>
+                                </div>
+                                <div className={styles.convPreview}>
+                                  {c.last_message?.content || "Tap to chat"}
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                  </>
+                )}
               </div>
             )}
           </div>
+
+          {/* Context Menu for Right-Click */}
+          {contextMenu && (
+            <div
+              className={styles.contextMenu}
+              style={{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                className={styles.contextMenuItem}
+                onClick={() => toggleHideChat(contextMenu.convId)}
+              >
+                <span>{contextMenu.isHidden ? "👁️ Unhide Chat" : "🙈 Hide Chat"}</span>
+              </button>
+            </div>
+          )}
 
           {/* Chat Area */}
           <div className={styles.chatArea}>
@@ -288,18 +462,43 @@ export default function ChatClient({ initialUser }: ChatClientProps) {
                 <div className={styles.activeChatHeader}>
                   <button className={styles.mobileBack} onClick={() => { activeConvIdRef.current = null; setActiveConvId(null); setActivePartner(null) }}>← Inbox</button>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <div className="avatar-placeholder" style={{ width: 36, height: 36, fontSize: 13 }}>
-                      {(activePartner?.username?.[0] || "U").toUpperCase()}
+                    <div style={{ position: "relative" }}>
+                      <div className="avatar-placeholder" style={{ width: 38, height: 38, fontSize: 13 }}>
+                        {(activePartner?.username?.[0] || "U").toUpperCase()}
+                      </div>
+                      <span
+                        className={
+                          activePartner?.last_active && (Date.now() - new Date(activePartner.last_active).getTime()) < 3 * 60000
+                            ? styles.onlineDot
+                            : styles.offlineDot
+                        }
+                      />
                     </div>
                     <div>
                       <div style={{ fontWeight: 700, fontSize: "0.95rem" }}>
                         {activePartner?.full_name || activePartner?.username}
                       </div>
-                      <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>
-                        @{activePartner?.username} • Active Study Partner
+                      <div className={styles.activeStatusText}>
+                        <span>@{activePartner?.username}</span>
+                        <span>•</span>
+                        {activePartner?.last_active && (Date.now() - new Date(activePartner.last_active).getTime()) < 3 * 60000 ? (
+                          <span className={styles.statusGreen}>● Online</span>
+                        ) : (
+                          <span>Last active: {formatLastActive(activePartner?.last_active)}</span>
+                        )}
                       </div>
                     </div>
                   </div>
+                  {/* Right Header Action: Quick Hide/Unhide */}
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-ghost"
+                    onClick={() => toggleHideChat(activeConvId)}
+                    title={hiddenConvIds.includes(activeConvId) ? "Unhide this chat" : "Hide this chat"}
+                    style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}
+                  >
+                    {hiddenConvIds.includes(activeConvId) ? "👁️ Unhide" : "🙈 Hide"}
+                  </button>
                 </div>
 
                 {/* 7-Day Auto Delete Notice Banner */}
