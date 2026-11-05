@@ -1,9 +1,37 @@
 import { createClient } from "@/lib/supabase/server"
 import { notFound } from "next/navigation"
 import Link from "next/link"
+import type { Metadata } from "next"
 import styles from "./page.module.css"
 import FavoriteButton from "@/components/library/FavoriteButton"
 import BookReadModal from "@/components/library/BookReadModal"
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params
+  const supabase = await createClient()
+  const { data: book } = await supabase
+    .from("books")
+    .select("title, author, description, description_hindi, cover_url")
+    .eq("id", id)
+    .single()
+
+  if (!book) {
+    return { title: "Book Not Found" }
+  }
+
+  const desc = book.description || book.description_hindi || `Read ${book.title} by ${book.author} online at Anchor Library.`
+  const title = `${book.title} by ${book.author || "Unknown"}`
+
+  return {
+    title,
+    description: desc.slice(0, 160),
+    openGraph: {
+      title: `${title} | Anchor Library`,
+      description: desc.slice(0, 160),
+      images: book.cover_url ? [{ url: book.cover_url }] : [],
+    },
+  }
+}
 
 export default async function BookDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params

@@ -2,16 +2,54 @@ import type { Metadata } from "next"
 import "./globals.css"
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://anchorlib.space"),
   title: {
-    default: "Anchor Library — Your Global Virtual Library",
+    default: "Anchor Library — Online Books & Virtual Study Rooms",
     template: "%s | Anchor Library",
   },
-  description: "Read Hindi and English books, keep your notes, and focus with a little company in camera-free study rooms.",
-  keywords: ["virtual library", "study rooms", "online books", "study together", "focus", "UPSC", "learning"],
+  description:
+    "Discover books, explore English and Hindi literature, and join virtual study rooms at Anchor Library. Find your focus and read together.",
+  keywords: [
+    "virtual library",
+    "virtual study rooms",
+    "online reading rooms",
+    "hindi literature books",
+    "english classics online",
+    "study with me online",
+    "pomodoro focus room",
+    "camera-free study room",
+    "read books online",
+    "UPSC study group",
+    "Anchor Library",
+  ],
+  authors: [{ name: "Anchor Library Team" }],
+  creator: "Anchor Library",
+  publisher: "Anchor Library",
   openGraph: {
-    title: "Anchor Library",
-    description: "Study together, stay consistent. A global virtual library.",
+    title: "Anchor Library — Online Books & Virtual Study Rooms",
+    description:
+      "Discover books, explore English and Hindi literature, and join virtual study rooms at Anchor Library. Find your focus and read together.",
+    url: "https://anchorlib.space",
+    siteName: "Anchor Library",
+    locale: "en_US",
     type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Anchor Library — Online Books & Virtual Study Rooms",
+    description:
+      "Discover books, explore English and Hindi literature, and join virtual study rooms at Anchor Library. Find your focus and read together.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
   },
 }
 

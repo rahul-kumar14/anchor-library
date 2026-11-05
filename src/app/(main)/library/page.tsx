@@ -2,7 +2,10 @@ import { createClient } from "@/lib/supabase/server"
 import Link from "next/link"
 import styles from "./page.module.css"
 
-export const metadata = { title: "Browse Books" }
+export const metadata = {
+  title: "Online Library — Browse Free Hindi & English Books",
+  description: "Browse 100+ carefully cataloged free Hindi literature, English classics, tech/coding books, and UPSC preparation resources with in-browser reading.",
+}
 
 export const dynamic = 'force-dynamic'
 
