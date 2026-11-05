@@ -430,6 +430,9 @@ export default async function HomePage() {
         <div className={styles.footerLinks}>
           <Link href="/library">Library</Link>
           <Link href="/study-rooms">Study rooms</Link>
+          <Link href="/guides/virtual-study-rooms">Virtual Study Rooms</Link>
+          <Link href="/guides/hindi-literature">Hindi Books</Link>
+          <Link href="/guides/study-with-me">Study With Me</Link>
           <Link href="/privacy">Privacy & community</Link>
         </div>
       </footer>
