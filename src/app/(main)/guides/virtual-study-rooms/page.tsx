@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import styles from "./guide.module.css"
+import styles from "../guide.module.css"
 
 export const metadata: Metadata = {
   title: "Online Virtual Study Rooms — Free Camera-Free Focus Spaces",
@@ -106,3 +106,4 @@ export default function VirtualStudyRoomsGuide() {
     </article>
   )
 }
+

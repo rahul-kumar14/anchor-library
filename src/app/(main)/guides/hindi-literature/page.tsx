@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import styles from "./guide.module.css"
+import styles from "../guide.module.css"
 
 export const metadata: Metadata = {
   title: "Hindi Literature Online Reading — Read Premchand, Manav Kaul & Classics",
@@ -92,3 +92,4 @@ export default function HindiLiteratureGuide() {
     </article>
   )
 }
+

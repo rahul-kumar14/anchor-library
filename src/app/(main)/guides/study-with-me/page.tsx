@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import styles from "./guide.module.css"
+import styles from "../guide.module.css"
 
 export const metadata: Metadata = {
   title: "Study With Me Online — Virtual Accountability & Pomodoro Sessions",
@@ -83,3 +83,4 @@ export default function StudyWithMeGuide() {
     </article>
   )
 }
+
